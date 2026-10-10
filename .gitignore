@@ -1,0 +1,4 @@
+*.log
+extension.js.backup-*
+*.backup-before-retrypatch
+body_*.json

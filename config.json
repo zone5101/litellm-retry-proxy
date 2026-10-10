@@ -1,0 +1,1 @@
+{"port": 4010, "maxAttempts": 6, "upstreams": {"nvidia": "https://integrate.api.nvidia.com/v1", "ollama-cloud": "https://ollama.com/v1", "kimi": "https://api.kimi.ai/coding/v1", "gemini": "https://generativelanguage.googleapis.com/v1beta/openai", "azure-gpt5": "https://j4ych0uhl-3218-resource.services.ai.azure.com/openai/v1", "selftest-dead": "http://127.0.0.1:9/v1"}}
