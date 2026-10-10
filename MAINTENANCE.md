@@ -85,3 +85,12 @@ File co comment marker o CUOI file danh dau patch set v1 + duong dan doc nay.
 ## 8. Lich su git (repo local nay)
 - ce564e4: tooling ban dau (proxy, patch script, ceiling test, README)
 - commit sau: MAINTENANCE.md (file nay) + marker v1 trong extension.js
+## 9. Sync-contract script (2026-10-11)
+- sync-contract.ps1: duy tri 1 nguon su that cho OPERATING CONTRACT v2
+- Usage: powershell -File sync-contract.ps1 -Direction github2local (hoac local2github)
+- github2local: fetch raw GitHub (public, khong auth) -> canonical + AGENTS.md local
+  (Daedalus chat workspace + Codex e2e-workspace)
+- local2github: doc AGENTS.md local -> canonical -> commit + push (neu co thay doi thuc su)
+- Sua contract o dau cung duoc; chay 1 chieu la moi ban khop. Canonical public URL:
+  https://raw.githubusercontent.com/zone5101/litellm-retry-proxy/main/OPERATING-CONTRACT.md
+- Repo da PUBLIC (2026-10-11) de cloud agent doc raw URL khong can token.
