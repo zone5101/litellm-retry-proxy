@@ -3,7 +3,7 @@
 #
 # User chi chon DUY NHAT model "agent-auto" trong Copilot picker. Hook nay chay truoc moi
 # request, phan loai theo context roi doi data['model'] sang chuoi phu hop:
-#   agent-omni   : co anh/audio/video trong message (da phuong tien)
+#   agent-omni   : co anh/audio/video trong message (da phuong tien) -> vision-only chain
 #   agent-strong  : input dai (>30k token uoc tinh), hoac agentic sau (tool + >12k token
 #                   hoac >24 msg hoac >6 tool-result), hoac reasoning_effort=high
 #   free-small    : request nho: khong tool, <=4 msg, <1500 token, max_tokens<=800
@@ -17,6 +17,7 @@
 #     callbacks: free_router_autoroute.autorouter
 
 from litellm.integrations.custom_logger import CustomLogger
+import litellm
 
 MEDIA_TYPES = ("image_url", "input_audio", "audio_url", "video_url", "image", "file")
 
@@ -94,6 +95,8 @@ class AutoRouter(CustomLogger):
             target, reason = "agent-fast", "default"
             if media:
                 target, reason = "agent-omni", "multimodal"
+                # Vision request: ensure we use vision-only chain (agent-omni)
+                print("[auto-route] Vision request -> using agent-omni (vision-only chain)", flush=True)
             elif effort == "high":
                 target, reason = "agent-strong", "effort-high"
             elif est_tokens > STRONG_INPUT_TOKENS:
