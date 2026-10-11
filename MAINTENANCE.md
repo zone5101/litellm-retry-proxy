@@ -210,6 +210,36 @@ Chuoi (13 model free, theo yeu cau user "dung thong minh"):
 - Tool run_commands co timeout 30s: cac phep do lau (start daemon, request model) phai DETACHED
   (Start-Process) roi poll ket qua qua file/log o cac lenh sau.
 
+### 11.7 agent-auto: CUA VAO DUY NHAT - phan loai request theo context (2026-10-11, phan 2)
+
+User yeu cau ro: chi chon DUY NHAT 1 model trong picker, phia sau tu dong chon model kho/nhe
+tuyen theo context cua tung request. Giai phap: model ao "agent-auto" + hook free_router_autoroute.py
+(async_pre_call_hook theo docs.litellm.ai/docs/proxy/call_hooks), mount:
+  litellm_settings:
+    callbacks: free_router_autoroute.autorouter
+
+Quy dinh phan loai (sua nguong o dau file hook):
+- co anh/audio/video trong message -> agent-omni
+- reasoning_effort=high -> agent-strong
+- uoc tinh input > 30000 token (chars/3) -> agent-strong
+- co tools va (input > 12000 tok HOAC > 24 msg HOAC > 6 tool-result) -> agent-strong (agentic sau)
+- khong tool, <= 4 msg, < 1500 tok, 0 < max_tokens <= 800 -> free-small (utility: title/commit msg)
+- con lai -> agent-fast
+Hook chi can thiep khi model = agent-auto; 4 chuoi chon truc tiep nguyen ven. Neu hook LOI:
+de nguyen agent-auto - config co chuoi du phong rieng (giong agent-fast, order 1-4) nen khong
+bao gio chet. Moi quyet dinh in ra "[auto-route] ..." trong free-router.log de quan sat.
+
+Bang chung test 2026-10-11 (log that, 6/6 dung):
+- tiny + max_tok=100 -> free-small (utility-small)
+- coding binh thuong -> agent-fast (default)
+- anh (image_url part) -> agent-omni (multimodal)
+- reasoning_effort=high -> agent-strong (effort-high)
+- input 150KB (est 50000 tok) -> agent-strong (input-50000tok), HTTP 200
+- E2E: "Say ROUTER-AUTO-OK" max_tok=300 -> free-small -> serve boi muse-glimmer-30b
+  (x-litellm-model-id 8568a034...), HTTP 200 sau 7.9s
+Luu y: request bi client abort giua chang (test timeout 1s) -> litellm in "No fallback was
+attempted" cho nhom do - dung hanh vi khi client mat ket noi, khong phai loi chuoi.
+
 ### 10.1 Xac minh extension da nhan limits + don dep temp (2026-10-11 chieu, Daedalus)
 - Settings readback: dung 11 entry models.parameters + 10 record capabilities (gia tri khop apply-limits plan, doc lai bang JSON parse chinh xac, mtime 11:38:44).
 - Extension host (Code.exe node.mojom.NodeService pid 68680) tao 12:08:27 > settings mtime 11:38:44 -> da co Reload Window; log ghi "LiteLLM Extension activated (v0.6.8)" 12:09:41 + "Registered models" 12:09:56..12:10:09.
