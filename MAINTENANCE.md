@@ -143,3 +143,10 @@ Trang thai cuoi: settings.json co 11 entry models.parameters + 10 record capabil
 NVIDIA LiteLLM (backup: settings.json.backup-limits-<stamp>). PHAI Reload Window de extension doc lai.
 Entry nvidia/llama-3.1-nemotron-ultra-253b-v1 (max_tokens=16000) do user tao tu truoc - giu nguyen.
 Kiem chung phia extension: hoi Copilot `litellm_inspect_model` cho tung model de xem max tokens hieu luc.
+
+### 10.1 Xac minh extension da nhan limits + don dep temp (2026-10-11 chieu, Daedalus)
+- Settings readback: dung 11 entry models.parameters + 10 record capabilities (gia tri khop apply-limits plan, doc lai bang JSON parse chinh xac, mtime 11:38:44).
+- Extension host (Code.exe node.mojom.NodeService pid 68680) tao 12:08:27 > settings mtime 11:38:44 -> da co Reload Window; log ghi "LiteLLM Extension activated (v0.6.8)" 12:09:41 + "Registered models" 12:09:56..12:10:09.
+- Bang chung chuc nang: request nvidia/nemotron-3.5-lightning-30b-a3b luc 12:48:56 nhan prompt_tokens=86,703 va complete (chi kha thi khi capabilities moi ctx=262144/in=131072 da hieu luc); retry patch van song (log attempt 5/8).
+- Don dep temp (nhiem vu user): %TEMP%\nvkey.tmp (70B - key NVIDIA plaintext) va %TEMP%\svc_copy.db (10.9MB ban sao state.vscdb) DA XOA, Test-Path False ca hai. decrypt-nvkey.ps1 tu tao lai khi can probe.
+- Loss: PS5.1 Remove-Item voi $env:TEMP dang short-path (ZONE~1) gay "An object at the specified path C:\Users\ZONE~1 does not exist" - phai dung long path + [System.IO.File]::Delete().
