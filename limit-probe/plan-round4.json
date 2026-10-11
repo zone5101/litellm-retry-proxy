@@ -1,0 +1,1 @@
+[{"model":"poolside/laguna-xs-2.1","cands":[262144]},{"model":"nvidia/nemotron-3.5-lightning-30b-a3b","cands":[262144]},{"model":"nvidia/ising-calibration-1.5-31b","cands":[131072,98304]}]

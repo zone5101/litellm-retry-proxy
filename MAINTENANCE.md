@@ -94,3 +94,52 @@ File co comment marker o CUOI file danh dau patch set v1 + duong dan doc nay.
 - Sua contract o dau cung duoc; chay 1 chieu la moi ban khop. Canonical public URL:
   https://raw.githubusercontent.com/zone5101/litellm-retry-proxy/main/OPERATING-CONTRACT.md
 - Repo da PUBLIC (2026-10-11) de cloud agent doc raw URL khong can token.
+
+## 10. Gioi han output tung model NVIDIA - DO THAT (2026-10-11)
+
+Van de: extension chi gui max_tokens = min(4096, maxOutputTokens) khi model KHONG co record
+models.parameters (nguon `capped` trong AE()). Truoc day chi z-ai/glm-5.3-flash co record 262144
+-> 10 model con lai chay 4096 token -> think an het budget -> "Sorry, no response was returned".
+Catalog OpenRouter (openrouter-models.json, 467 record) chi giup HIEN THI context, KHONG nang budget.
+
+Cong cu do (moi, trong thu muc nay):
+- decrypt-nvkey.ps1 + decrypt-secrets.js: lay lai NVIDIA key tu VS Code SecretStorage
+  (master key = os_crypt.encrypted_key trong %APPDATA%\Code\Local State -> bo prefix DPAPI ->
+  DPAPI unprotect; roi AES-256-GCM cho cac blob "v10" trong state.vscdb). Ket qua -> %TEMP%\nvkey.tmp.
+- limit-probe.ps1 / limit-probe2.ps1: do tran max_tokens (ACCEPT = stream co byte + "choices";
+  404 -> NOT_AVAILABLE; ResourceExhausted/429 -> cho 30s thu lai, khong tinh la reject).
+- ctx-probe.ps1: do context that bang prompt 600k ky tu (NIM tra 400 "maximum context length is N").
+- apply-limits.ps1: ghi settings.json (tu backup + verify bang doc lai).
+
+Ket qua (bang cuoc: limit-probe/results-round1..4.jsonl, ctx-results.jsonl):
+| model | max_tokens set | bang chung tu server |
+|---|---|---|
+| z-ai/glm-5.3 | 262144 | accept 262144 (byte+choices+finish_reason+DONE) |
+| z-ai/glm-5.3-flash | 262144 | nhu tren (da co tu phien truoc) |
+| deepseek-ai/deepseek-v4.1-flash | 262144 | accept 262144 |
+| nvidia/nemotron-3-super-120b-a12b | 131072 | accept 262144; prompt 150k token qua duoc |
+| nvidia/nemotron-3-ultra-550b-a55b | 131072 | nhu tren |
+| nvidia/nemotron-3-nano-omni-30b-a3b-reasoning | 131072 | accept 262144 (round1 32768 reject = loi tam thoi) |
+| nvidia/nemotron-3.5-lightning-30b-a3b | 131072 | round1 treo/404 tam thoi; accept 16384 -> 131072 -> 262144 |
+| meta/muse-glimmer-30b | 131072 | accept 262144 nhung prompt 150k -> 500 Internal server error |
+| poolside/laguna-xs-2.1 | 131072 | accept 131072; 262144 -> ResourceExhausted (capacity) |
+| nvidia/ising-calibration-1.5-31b | 65536 | server khai ctx tong = 131072; 131072 -> 400 |
+| nvidia/llama-3.1-nemotron-ultra-253b-v1 | khong set | 404 moi lan - khong dung duoc voi key nay |
+
+Vi sao 131072 (khong 262144) cho nhom ctx 262144: output + input dung chung context. Khai
+ctx=262144 + max_tokens=262144 => max_input = 0 => extension chan moi cuoc chat. 131072 de lai
+131072 cho prompt - ca hai deu da duoc chung minh chap nhan.
+
+Loss & lessons:
+- Catalog OpenRouter KHONG dung lam nguon gioi han: nemotron-super khai maxout 16384 nhung server
+  nhan 262144; muse khai ctx 131072 nhung nhan output 262144. Chi tin loi server tra ve.
+- Khi nang max_tokens BAT BUOC khai capabilities: extension co
+  `if (prompt+tool > maxInputTokens) throw "conversation looks too long for the model"`, va
+  maxInputTokens = max(1, ctx - maxOut). Chi nang output ma khong khai ctx => maxInput = 1 => chan het.
+- "capacity/rate" va "0 byte/timeout" phai coi la CHUA KET LUAN, khong phai reject (round1 ket luan
+  sai 3 ca: nano-omni, lightning, laguna - round2 deu ACCEPT).
+
+Trang thai cuoi: settings.json co 11 entry models.parameters + 10 record capabilities cho server
+NVIDIA LiteLLM (backup: settings.json.backup-limits-<stamp>). PHAI Reload Window de extension doc lai.
+Entry nvidia/llama-3.1-nemotron-ultra-253b-v1 (max_tokens=16000) do user tao tu truoc - giu nguyen.
+Kiem chung phia extension: hoi Copilot `litellm_inspect_model` cho tung model de xem max tokens hieu luc.

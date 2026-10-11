@@ -2,3 +2,7 @@
 extension.js.backup-*
 *.backup-before-retrypatch
 body_*.json
+limit-probe/body.json
+limit-probe/ctx-body.json
+limit-probe/out.ndjson
+limit-probe/ctx-out.ndjson
