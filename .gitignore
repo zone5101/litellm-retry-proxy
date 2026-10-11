@@ -6,3 +6,5 @@ limit-probe/body.json
 limit-probe/ctx-body.json
 limit-probe/out.ndjson
 limit-probe/ctx-out.ndjson
+free-router.env
+*.env

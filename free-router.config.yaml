@@ -1,0 +1,97 @@
+# Free Router - LiteLLM proxy cho Copilot Chat/Autopilot (13 model free, 4 chuoi auto-switch)
+# Doc: MAINTENANCE.md muc 11. Start: start-free-router.ps1 (port 4000, chi 127.0.0.1, khong can key)
+# Co che: moi model ao = 1 chuoi deployment theo `order`. Request fail o order N (429/5xx/timeout)
+# -> deployment bi cooldown ngay -> router tu nhay order N+1 trong CUNG request. Het cooldown tu ve N.
+# glm-5.3-flash ang can budget van giu order 1 cua agent-fast: router se cooldown va nhay tiep,
+# khi NIM hoi budget thi tu quay lai (ung yeu cau "cu cho no vao").
+model_list:
+  # ---------- CHUOI 1: agent-fast (Autopilot/chat hang ngay) ----------
+  - model_name: agent-fast
+    order: 1
+    litellm_params: { model: openai/z-ai/glm-5.3-flash, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 1044480, max_output_tokens: 262144 }
+  - model_name: agent-fast
+    order: 2
+    litellm_params: { model: openai/deepseek-ai/deepseek-v4.1-flash, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 1044480, max_output_tokens: 262144 }
+  - model_name: agent-fast
+    order: 3
+    litellm_params: { model: openai/nvidia/nemotron-3.5-lightning-30b-a3b, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 131072, max_output_tokens: 131072 }
+  - model_name: agent-fast
+    order: 4 # storm-breaker: pool Ollama Cloud rieng, khong dinh 429 cua account NIM
+    litellm_params: { model: openai/gpt-oss:120b, api_base: https://ollama.com/v1, api_key: os.environ/OLLAMA_API_KEY }
+    model_info: { max_input_tokens: 114688, max_output_tokens: 16384 }
+  # ---------- CHUOI 2: agent-strong (viec kho, chuoi dai) ----------
+  - model_name: agent-strong
+    order: 1
+    litellm_params: { model: openai/z-ai/glm-5.3, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 1044480, max_output_tokens: 262144 }
+  - model_name: agent-strong
+    order: 2
+    litellm_params: { model: openai/nvidia/nemotron-3-super-120b-a12b, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 131072, max_output_tokens: 131072 }
+  - model_name: agent-strong
+    order: 3
+    litellm_params: { model: openai/nvidia/nemotron-3-ultra-550b-a55b, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 131072, max_output_tokens: 131072 }
+  - model_name: agent-strong
+    order: 4
+    litellm_params: { model: openai/nemotron-3-ultra, api_base: https://ollama.com/v1, api_key: os.environ/OLLAMA_API_KEY }
+    model_info: { max_input_tokens: 246144, max_output_tokens: 16384 }
+  # ---------- CHUOI 3: agent-omni (a phuong tien: anh/audio) ----------
+  - model_name: agent-omni
+    order: 1
+    litellm_params: { model: openai/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 131072, max_output_tokens: 131072 }
+  - model_name: agent-omni
+    order: 2
+    litellm_params: { model: openai/z-ai/glm-5.3-flash, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 1044480, max_output_tokens: 262144 }
+  - model_name: agent-omni
+    order: 3
+    litellm_params: { model: openai/deepseek-ai/deepseek-v4.1-flash, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 1044480, max_output_tokens: 262144 }
+  - model_name: agent-omni
+    order: 4
+    litellm_params: { model: openai/gpt-oss:120b, api_base: https://ollama.com/v1, api_key: os.environ/OLLAMA_API_KEY }
+    model_info: { max_input_tokens: 114688, max_output_tokens: 16384 }
+  # ---------- CHUOI 4: free-small (task nho: title/commit/tom tat - tiet kiem budget) ----------
+  - model_name: free-small
+    order: 1
+    litellm_params: { model: openai/meta/muse-glimmer-30b, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 131072, max_output_tokens: 131072 }
+  - model_name: free-small
+    order: 2
+    litellm_params: { model: openai/poolside/laguna-xs-2.1, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 131072, max_output_tokens: 131072 }
+  - model_name: free-small
+    order: 3
+    litellm_params: { model: openai/nvidia/ising-calibration-1.5-31b, api_base: https://integrate.api.nvidia.com/v1, api_key: os.environ/NVIDIA_API_KEY }
+    model_info: { max_input_tokens: 65536, max_output_tokens: 65536 }
+
+litellm_settings:
+  request_timeout: 600
+  drop_params: true # model khong hieu param (reasoning_effort...) thi bo qua, khong fail
+
+router_settings:
+  routing_strategy: usage-based-routing-v2
+  num_retries: 2
+  allowed_fails: 2 # deployment fail 2 lan/phut -> cooldown
+  cooldown_time: 90 # cho ~ Retry-After cua NIM
+  timeout: 600
+  retry_policy:
+    RateLimitErrorRetries: 0 # 429: KHONG ngu Retry-After - cooldown ngay roi nhay order sau
+    TimeoutErrorRetries: 2
+    InternalServerErrorRetries: 2
+    NotFoundErrorRetries: 0
+    DefaultRetries: 2
+  context_window_fallbacks: # input vuot context chuoi hien tai -> nhay chuoi 1M
+    - agent-fast: [agent-strong]
+    - free-small: [agent-fast]
+  optional_pre_call_checks: # ghim 1 conversation vao 1 deployment (xuyen suot ngu canh)
+    - session_affinity
+  deployment_affinity_ttl_seconds: 3600
+
+general_settings:
+  dangerously_permit_weak_or_unset_master_key: true # localhost-only (127.0.0.1), may ca nhan - harden sau neu can

@@ -144,6 +144,72 @@ NVIDIA LiteLLM (backup: settings.json.backup-limits-<stamp>). PHAI Reload Window
 Entry nvidia/llama-3.1-nemotron-ultra-253b-v1 (max_tokens=16000) do user tao tu truoc - giu nguyen.
 Kiem chung phia extension: hoi Copilot `litellm_inspect_model` cho tung model de xem max tokens hieu luc.
 
+## 11. Free Router - LiteLLM proxy auto-switch 13 model free cho Copilot (2026-10-11)
+
+### 11.1 Tinh nang
+LiteLLM proxy 1.104.2 chay local port 4000 (chi bind 127.0.0.1) voi 4 model ao, moi model ao = 1
+chuoi deployment theo `order`. Request fail (429/5xx/timeout) o order N -> deployment cooldown 90s
+-> router TU NHAY order N+1 trong CUNG request (bang chung o 11.4). Copilot chi thay 1 model on dinh,
+viec doi model hoan toan trong suot. Chat la stateless (history gui lai moi request) nen doi model
+giua chung KHONG mat context; session_affinity giup 1 conversation dinh 1 deployment khi no khoe.
+
+Chuoi (13 model free, theo yeu cau user "dung thong minh"):
+- agent-fast: glm-5.3-flash -> deepseek-v4.1-flash -> nemotron-3.5-lightning -> gpt-oss:120b (Ollama Cloud, pool rate rieng tach NIM)
+- agent-strong: glm-5.3 -> nemotron-super-120b -> nemotron-ultra-550b -> nemotron-3-ultra (Ollama Cloud)
+- agent-omni: nemotron-3-nano-omni -> glm-5.3-flash -> deepseek-v4.1-flash -> gpt-oss:120b
+- free-small: muse-glimmer-30b -> laguna-xs-2.1 -> ising-calibration-1.5-31b (task nho, tiet kiem)
+- llama-3.1-nemotron-ultra-253b-v1 KHONG vao chuoi (404 voi key nay - muc 10).
+- glm-5.3-flash de order 1 duong budget can (user yeu cau cu de vo): router tu cooldown, NIM hoi
+  budget thi tu quay lai - khong can lam gi them.
+
+### 11.2 Cac file (thu muc nay)
+- free-router.config.yaml: cau hinh router (ASCII khong dau - ly do o 11.6).
+- free-router.env: NVIDIA_API_KEY + OLLAMA_API_KEY. DA GITIGNORE - CAM COMMIT VAO REPO PUBLIC.
+- start-free-router.ps1: health-check -> nap key tu env (hoac %TEMP%\nvkey.tmp) -> spawn
+  Scripts\litellm.exe DETACHED (hidden, log ra free-router.log / free-router.err.log).
+- run-free-router.vbs: chay hidden tu shell:startup (da copy vao Startup folder).
+- test-agent-fast.ps1: test chuoi - gui 1 request, ghi HTTP status + x-litellm-model-id +
+  content ra %TEMP%\router-test.{sta,hdr,out} de doc duoc tu tool co timeout 30s.
+
+### 11.3 Tich hop VS Code (khong can reload window)
+- Extension andrewbutson.github-copilot-llm-gateway da co san serverUrl http://localhost:4000
+  trong settings.json. Router len la no tu poll va dang ky 4 model vao Copilot model picker
+  (bang chung trong free-router.log: "GET /v1/models" 200 tu extension, "GET /v1/usage/current"
+  404 - endpoint usage khong co, optional, khong anh huong).
+- settings.json da them: github.copilot.llm-gateway.sessionAffinityHeader = "x-litellm-session-id"
+  (1 conversation dinh 1 deployment; deployment cooldown thi tam sang khac, hoi pin tu dong).
+  Truoc do co backup: settings.json.backup-freerouter-20261011.
+- QUAN TRONG: nut "Auto" trong model picker Copilot KHONG cho phep model BYOK/extension
+  (microsoft/vscode#331718 feature-request van mo; #326344 bug Agents window chi hien Auto).
+  Thay the: chon "LLM Gateway: agent-fast" mot lan trong picker - router lo phan con lai.
+
+### 11.4 Bang chung auto-switch (test that, 2026-10-11 ~15:5x)
+- POST /v1/chat/completions model=agent-fast -> HTTP 200 sau 6.1 giay, content ROUTER-OK.
+- Header x-litellm-model-id = 70567c39... = nemotron-3.5-lightning-30b-a3b = ORDER 3 cua chuoi
+  -> tuc order 1 (glm-flash) + order 2 (deepseek-flash) DA FAIL va router da tu nhay model.
+  Day la chinh xac hanh vi "doi model giua chung khi het budget/loi" ma user yeu cau.
+
+### 11.5 Rollback
+1. Stop daemon: Get-CimInstance Win32_Process | ? CommandLine -match 'litellm' | % Stop-Process.
+2. Xoa run-free-router.vbs khoi Startup folder.
+3. Xoa dong sessionAffinityHeader khoi settings.json (hoac restore tu backup-freerouter-20261011).
+4. 4 server goc litellm-vscode-chat + patch 8-attempt van nguyen ven, khong bi anh huong.
+
+### 11.6 Losses & lessons (bu cho muc Loss tong)
+- UnicodeDecodeError cp1252 khi litellm doc YAML chua tieng Viet co dau (file do editor ghi UTF-8,
+  Python Windows doc cp1252). Da record_loss; buoc: file Python doc = ASCII khong dau + PYTHONUTF8=1
+  trong launcher. MAINTENANCE.md dong 5 da canh bao tu truoc - da vi pham va sua.
+- python -m litellm KHONG chay: package khong co __main__ -> dung Scripts\litellm.exe.
+- PS 5.1 Start-Process KHONG tu quote doi so chua dau cach: config path "C:\Users\Z One\..." bi cat
+  tai khoang trang -> dung duong dan TUONG DOI + WorkingDirectory, hoac short path ZONE~1.
+- cmd /c + duong dan chua dau cach: quoting vo (log rong, error mat) -> dung Start-Process truc tiep.
+- litellm >=1.104 tu choi start khong master key (UnsafeMasterKeyError) ->
+  general_settings.dangerously_permit_weak_or_unset_master_key: true (chi 127.0.0.1, may ca nhan).
+  Harden sau neu can: tao LITELLM_MASTER_KEY vao free-router.env, khai general_settings.master_key,
+  va user dan key do vao "Configure Server" cua extension mot lan.
+- Tool run_commands co timeout 30s: cac phep do lau (start daemon, request model) phai DETACHED
+  (Start-Process) roi poll ket qua qua file/log o cac lenh sau.
+
 ### 10.1 Xac minh extension da nhan limits + don dep temp (2026-10-11 chieu, Daedalus)
 - Settings readback: dung 11 entry models.parameters + 10 record capabilities (gia tri khop apply-limits plan, doc lai bang JSON parse chinh xac, mtime 11:38:44).
 - Extension host (Code.exe node.mojom.NodeService pid 68680) tao 12:08:27 > settings mtime 11:38:44 -> da co Reload Window; log ghi "LiteLLM Extension activated (v0.6.8)" 12:09:41 + "Registered models" 12:09:56..12:10:09.
