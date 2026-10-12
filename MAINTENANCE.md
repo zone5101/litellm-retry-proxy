@@ -143,3 +143,51 @@ Trang thai cuoi: settings.json co 11 entry models.parameters + 10 record capabil
 NVIDIA LiteLLM (backup: settings.json.backup-limits-<stamp>). PHAI Reload Window de extension doc lai.
 Entry nvidia/llama-3.1-nemotron-ultra-253b-v1 (max_tokens=16000) do user tao tu truoc - giu nguyen.
 Kiem chung phia extension: hoi Copilot `litellm_inspect_model` cho tung model de xem max tokens hieu luc.
+
+## 11. Antigravity Local provider bridge (2026-10-12)
+
+Muc tieu: dung model dang duoc account Antigravity desktop hop le expose nhu model BYOK/native provider trong VS Code/Copilot/Daedalus, chon dung model ID, khong auto-route va khong fallback sang model khac. MCP khong nam tren duong model transport.
+
+Kien truc da chung minh:
+- Antigravity Electron spawn `resources/bin/language_server.exe`.
+- Language server tu mo loopback HTTPS port dong va expose Connect RPC.
+- Bridge `antigravity/antigravity_openai_bridge.py` tu rediscover port hien tai, doc CSRF boot value vao RAM, goi `GetAvailableModels` va `GetModelResponse`, roi expose localhost OpenAI-compatible `:19171/v1`.
+- VS Code `vivswan.litellm-vscode-chat` da discover catalog nay va cac model Antigravity da xuat hien trong model registry, ke ca Agent Host cua Copilot.
+- Khong persist OAuth/session/CSRF; khong patch binary Antigravity; unknown model fail closed.
+
+Tool ownership rootfix:
+- Lan test `vscode.lm` dau tien voi `LanguageModelChatToolMode.Required`, model bam dung example trong prompt va boc protocol duoi key `tool_call`; bridge cu coi no la text.
+- Fix: chi unwrap hai presentation wrapper da biet (`tool_call` / `final`), sau do van validate protocol noi; tool name phai nam trong danh sach harness da advertise va arguments phai la JSON object. Tool khong duoc model/bridge tu thuc thi.
+- Backup truoc fix: `antigravity_openai_bridge.py.pre_toolfix_20261012`.
+- SHA-256 backup: `44ce2ec901f264121754e5ffd1c4215846d6eb1d27e5e841f5600e6a59c7ac39`.
+- SHA-256 bridge hien tai: `e1d18dcc04ebb7ab4ca0cb4fea15c3ee211f6f485a317eade63104d036b17021`.
+
+Acceptance:
+- `GetModelResponse` explicit-model canary PASS.
+- Real VS Code 1.141 `vscode.lm` text request qua provider PASS.
+- Real VS Code tool loop PASS: model `gemini-3.5-flash-lite` -> `LanguageModelToolCallPart(lookup_magic_number)` -> harness tra `LanguageModelToolResultPart("314159")` -> model final `The authoritative magic number is 314159.`.
+- Mot candidate run gap upstream Cloud Code TCP/HTTP 500 truoc inference; khong co tool/side effect. Chi mot fresh retry duoc dung va PASS, khong them retry loop.
+- SSE hien tai la OpenAI compatibility framing sau unary inference, KHONG phai backend token-by-token streaming.
+
+Runtime:
+- Local install: `%LOCALAPPDATA%\AntigravityOpenAIBridge\`.
+- Startup: `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\AntigravityOpenAIBridge.cmd`.
+- Listener: `127.0.0.1:19171`.
+- VS Code provider base URL: `http://127.0.0.1:19171/v1`.
+
+Rollback:
+1. Stop bridge listener owner on 19171.
+2. Restore `antigravity_openai_bridge.py.pre_toolfix_20261012` over the live bridge.
+3. Run `start_bridge.ps1`.
+4. Verify `/health`, `/v1/models`, then one bounded provider canary.
+5. Do not touch Antigravity credentials or packaged binary.
+
+Git:
+- bridge source: `2e99e4c3e69b4151a527787e0357904f3e195871`
+- launcher: `ae16da416f027417e056292940918ca7f8b0010c`
+- bridge docs: `dce566b395084fa920af8deace6a2beece5ef338`
+
+Loss & lesson:
+- Descriptor presence khong dong nghia local handler: `ApiServerService.GetChatMessage` co schema dep nhung khong co exact local route string; khong blind-retry.
+- Tool schema co the dung nhung model-facing example van lam model boc them presentation wrapper. Parser phai chap nhan representation repair co gioi han, sau do fail-closed tren tool authority.
+- External harness phai giu quyen execute tool; provider bridge chi chuyen doi model request/response.
