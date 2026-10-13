@@ -78,6 +78,15 @@ class StageOwner {
 }
 const owner=new StageOwner();
 let output;
+const AUDIT_PATH = path.join(os.tmpdir(), 'chatgpt_renderer_isolation_20261013', 'copilot-provider-events.jsonl');
+function audit(stage, data={}) {
+  const event = {at:new Date().toISOString(), stage, ...data};
+  try {output?.appendLine(JSON.stringify(event));} catch (_) {}
+  try {
+    fs.mkdirSync(path.dirname(AUDIT_PATH), {recursive:true});
+    fs.appendFileSync(AUDIT_PATH, JSON.stringify(event)+'\n', {encoding:'utf8'});
+  } catch (_) {}
+}
 const provider={
  async provideLanguageModelChatInformation() {
    return [{id:MODEL,name:'ChatGPT PC — isolated staging',family:'chatgpt-pc-text',version:'v6',
@@ -88,25 +97,44 @@ const provider={
    return Math.max(1,Math.ceil(Buffer.byteLength(typeof text==='string'?text:String(text||''),'utf8')/3));
  },
  async provideLanguageModelChatResponse(_model,messages,options,progress,token) {
-   if (options?.tools?.length || options?.toolMode?.kind==='required')
-     throw new Error('PC_PROVIDER_TOOL_CALLING_UNSUPPORTED');
-   if (token?.isCancellationRequested) throw abortError();
-   const prompt=makePrompt(messages);
-   const key=await owner.start();
-   const controller=new AbortController();
-   const timeout=setTimeout(()=>controller.abort(),70000);
-   const cancel=token?.onCancellationRequested?.(()=>controller.abort());
+   const id=crypto.randomBytes(5).toString('hex');
+   let stage='admission', textParts=0;
+   audit('request.enter', {id, messageCount:Array.isArray(messages)?messages.length:null,
+      requestedTools:Array.isArray(options?.tools)?options.tools.length:0});
    try {
-     const response=await fetch('http://127.0.0.1:'+PORT+'/v1/chat/completions', {
-       method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',
-         Accept:'text/event-stream'},
-       body:JSON.stringify({model:MODEL,stream:true,messages:[{role:'user',content:prompt}]}),
-       signal:controller.signal
-     });
-     if (!response.ok) throw new Error('PC_PROVIDER_HTTP_'+response.status);
-     await readSSE(response.body,text=>{if(text)progress.report(new vscode.LanguageModelTextPart(text));});
-   } finally {clearTimeout(timeout);cancel?.dispose?.();}
+     if (options?.tools?.length || options?.toolMode?.kind==='required')
+       throw new Error('PC_PROVIDER_TOOL_CALLING_UNSUPPORTED');
+     if (token?.isCancellationRequested) throw abortError();
+     const prompt=makePrompt(messages);
+     audit('request.admitted', {id, promptBytes:Buffer.byteLength(prompt,'utf8')});
+     stage='stage_start';
+     const key=await owner.start();
+     const controller=new AbortController();
+     const timeout=setTimeout(()=>controller.abort(),70000);
+     const cancel=token?.onCancellationRequested?.(()=>controller.abort());
+     try {
+       stage='http_request';
+       const response=await fetch('http://127.0.0.1:'+PORT+'/v1/chat/completions', {
+         method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',
+           Accept:'text/event-stream'},
+         body:JSON.stringify({model:MODEL,stream:true,messages:[{role:'user',content:prompt}]}),
+         signal:controller.signal
+       });
+       audit('request.http', {id,status:response.status});
+       if (!response.ok) throw new Error('PC_PROVIDER_HTTP_'+response.status);
+       stage='sse';
+       const terminal=await readSSE(response.body,text=>{
+         if(text){textParts++;progress.report(new vscode.LanguageModelTextPart(text));}
+       });
+       audit('request.pass',{id,textParts,doneCount:terminal.doneCount,finishReason:terminal.finishReason});
+     } finally {clearTimeout(timeout);cancel?.dispose?.();}
+   } catch(err) {
+     audit('request.fail',{id,stage,errorName:err?.name || 'Error',
+       errorCode:String(err?.message || err).slice(0,120)});
+     throw err;
+   }
  }
+
 };
 function activate(context) {
  output=vscode.window.createOutputChannel('ChatGPT PC Staging Provider');
@@ -116,6 +144,7 @@ function activate(context) {
    owner.stop();output.appendLine('Stopped owned staging process');}));
  context.subscriptions.push({dispose(){owner.stop();}});
  output.appendLine('Provider registered: '+VENDOR+'; model '+MODEL+'; toolCalling=false');
+ audit('provider.activated',{vendor:VENDOR,model:MODEL,maxInputTokens:2048,toolCalling:false});
 }
 function deactivate(){owner.stop();}
 module.exports={activate,deactivate};

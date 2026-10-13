@@ -3,7 +3,7 @@
   "displayName": "ChatGPT PC Staging Copilot Provider",
   "description": "Isolated text-only ChatGPT PC Chat Mode provider for controlled Copilot E2E tests",
   "publisher": "livingos-local",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "engines": {
     "vscode": "^1.141.0"
