@@ -1,0 +1,11 @@
+{
+  "verdict": "PASS",
+  "path": "installed participant shim -> live isolated LiteLLM -> ChatGPT PC",
+  "notCopilotUiRequest": true,
+  "model": "chatgpt-pc-chat",
+  "participantId": "chatgpt-pc-staging-copilot.chatgptpc",
+  "responseText": "PC_IMPLICIT_REF_E2E_20261013",
+  "markdownParts": 1,
+  "warningCount": 1,
+  "implicitValueForwarded": false
+}

@@ -9,3 +9,6 @@ Registry vendor: `chatgpt-pc-isolated`, model `chatgpt-pc-chat`. Use VS Code v1.
 ## Direct Chat Participant (v0.0.3)
 The model-picker provider is limited to 2,048 input tokens while the v6 renderer pipe accepts only 8,192 bytes. Copilot Agent Host may reject BYOK requests before reaching the provider when its static system instructions and MCP/tool definitions are too large. Do not fake a larger model token limit.
 This extension registers VS Code Chat Participant @chatgptpc for use in the regular Chat View, not Agent Host SDK. It calls the same isolated staging backend, but receives the user's short prompt directly, bypassing Agent Host's built-in tool context. Single-turn text-only; rejects chat history, file references and tools. Native Copilot Agent tool calling is NOT SUPPORTED.
+
+## Implicit editor context (v0.0.4)
+VS Code may automatically attach a file, selection, or viewport reference to an otherwise text-only chat request. The participant admits exactly these implicit reference IDs with no authored range, but does not read or forward their values. It displays a warning that editor context was omitted. Explicit references, unknown IDs, tools, and history are still rejected. The chat prompt remains subject to the original 8192-byte limit.

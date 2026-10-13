@@ -5,6 +5,7 @@ const vscode = require('vscode');
 const os = require('node:os'), fs = require('node:fs'), path = require('node:path');
 const net = require('node:net'), crypto = require('node:crypto'), cp = require('node:child_process');
 const {makePrompt, readSSE} = require('./protocol.cjs');
+const {validateReferences} = require('./participant-context.cjs');
 const PORT = 19493, VENDOR = 'chatgpt-pc-isolated', MODEL = 'chatgpt-pc-chat';
 const SOURCE_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_ROOT = path.join(os.homedir(), '.litellm-retry-proxy.worktrees', 'chatgpt-pc-chat-adapter-20261013');
@@ -143,9 +144,12 @@ async function handleDirectChat(request, context, stream, token) {
   audit('participant.enter',{id, historyTurns:context?.history?.length || 0,
     referenceCount:request?.references?.length || 0});
   try {
-    if (request?.references?.length || request?.toolReferences?.length)
-      throw new Error('PC_PARTICIPANT_REFERENCES_UNSUPPORTED');
+    const {omittedImplicit} = validateReferences(request);
     if (context?.history?.length) throw new Error('PC_PARTICIPANT_HISTORY_UNSUPPORTED');
+    if (omittedImplicit) {
+      audit('participant.implicit_context_omitted',{id,count:omittedImplicit});
+      stream.warning?.('Automatic editor context was not sent to ChatGPT PC; only your typed text is used.');
+    }
     if (token?.isCancellationRequested) throw abortError();
     const prompt=makePrompt([{role:1,content:[{value:request?.prompt}]}]);
     audit('participant.admitted',{id,promptBytes:Buffer.byteLength(prompt,'utf8')});
