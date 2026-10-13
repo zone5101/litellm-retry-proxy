@@ -148,11 +148,11 @@ async function handleDirectChat(request, context, stream, token) {
     const omittedHistory = countOmittedHistory(context);
     if (omittedReferences || omittedHistory) {
       audit('participant.context_omitted',{id,references:omittedReferences,historyTurns:omittedHistory});
-      // Always make omitted context visible to users; NEVER read or send reference values.
-      const warning='Only your typed text was sent to ChatGPT PC. ' +
+      // Stable ChatResponseStream.markdown only. Accessing warning requires the
+      // proposed chatParticipantAdditions API and breaks regular VS Code.
+      const notice='Only your typed text was sent to ChatGPT PC. ' +
         'VS Code references/attachments and earlier chat history were NOT included.';
-      if (typeof stream.warning === 'function') stream.warning(warning);
-      else stream.markdown('**Note:** '+warning+'\n\n');
+      stream.markdown('> **Context omitted:** '+notice+'\n\n');
     }
     if (token?.isCancellationRequested) throw abortError();
     const prompt=makePrompt([{role:1,content:[{value:request?.prompt}]}]);

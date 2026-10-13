@@ -1,0 +1,13 @@
+{
+  "verdict": "PASS",
+  "path": "installed ChatParticipant handler -> isolated LiteLLM -> live ChatGPT PC",
+  "notCopilotUiRequest": true,
+  "participantId": "chatgpt-pc-staging-copilot.chatgptpc",
+  "contextOmitted": true,
+  "proposedApiUsed": false,
+  "referenceValueRead": false,
+  "historyValueRead": false,
+  "responseMatched": true,
+  "parts": 2,
+  "port": 19493
+}

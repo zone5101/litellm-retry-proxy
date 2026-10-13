@@ -35,3 +35,12 @@ test('participant rejects oversize prompt before spawning stage',async()=>{
   await assert.rejects(handler({prompt:'x'.repeat(8193)},{history:[]},{markdown(){}},{}),/PC_PROVIDER_INPUT_OVER_8192_BYTES/);
 });
 test.after(()=>ext.deactivate());
+
+test('stable Chat API: do not touch proposed ChatResponseStream.warning',()=>{
+  const fs = require('node:fs');
+  const source=fs.readFileSync(require('node:path').join(__dirname,'extension.js'),'utf8');
+  assert.equal(source.includes('stream.warning('),false);
+  assert.equal(source.includes('stream.markdown('),true);
+  const manifest=require('./package.json');
+  assert.equal(manifest.enabledApiProposals,undefined);
+});
