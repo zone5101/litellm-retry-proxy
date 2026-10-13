@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "stage": "sse_checked",
+  "port": 19493,
+  "model": "chatgpt-pc-chat",
+  "timestamp": "2026-10-13",
+  "production_modified": false,
+  "http_status": 200,
+  "delta_events": 2,
+  "done_count": 1,
+  "finish_reason": "stop",
+  "response_text": "PC_STAGE_RECHECK_20261013",
+  "match": true,
+  "staging_pid": 26880,
+  "process_stopped": true
+}

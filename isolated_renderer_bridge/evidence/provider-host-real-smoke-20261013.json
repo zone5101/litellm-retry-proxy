@@ -1,0 +1,9 @@
+{
+  "verdict": "PROVIDER_HOST_REAL_BRIDGE_PASS",
+  "provider": "chatgpt-pc-isolated",
+  "model": "chatgpt-pc-chat",
+  "toolCalling": false,
+  "response_text": "PC_PROVIDER_SMOKE_20261013",
+  "text_parts": 1,
+  "execution": "Node host shim calls installed VS Code provider; real isolated ChatGPT PC and staging proxy; NOT a Copilot UI request"
+}

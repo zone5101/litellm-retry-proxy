@@ -1,0 +1,42 @@
+{
+  "name": "chatgpt-pc-staging-copilot",
+  "displayName": "ChatGPT PC Staging Copilot Provider",
+  "description": "Isolated text-only ChatGPT PC Chat Mode provider for controlled Copilot E2E tests",
+  "publisher": "livingos-local",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "vscode": "^1.141.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "chatgpt-pc-isolated",
+        "displayName": "ChatGPT PC Isolated"
+      }
+    ],
+    "commands": [
+      {
+        "command": "chatgptPcStaging.stop",
+        "title": "ChatGPT PC Staging: Stop Owned Proxy"
+      }
+    ],
+    "configuration": {
+      "title": "ChatGPT PC Isolated Staging",
+      "properties": {
+        "chatgptPcStaging.repoRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to existing ChatGPT PC bridge worktree; empty uses canonical per-user worktree."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test.cjs"
+  }
+}
