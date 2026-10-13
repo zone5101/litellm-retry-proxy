@@ -51,7 +51,10 @@ Candidate ingress outcomes for this build:
 - **App-host MessagePort/IPC:** owned by the preload/main process. The renderer
   creates `connect-app-host`; main checks the registered trusted sender. It
   supplies outbound authenticated fetch, not an external `Jwi` dispatch or
-  response stream. An adapter cannot impersonate this sender.
+  response stream. The shipped `.vite/build/preload.js` exposes
+  `electronBridge` methods including `sendMessageFromView`, but exposes no
+  Chat submission or live-scope accessor. An adapter cannot impersonate its
+  trusted sender or use that renderer-to-main method as an inbound channel.
 - **Localhost WebSocket/HTTP from the renderer:** no listener or renderer
   receiver is shipped. `webview/index.html` has no localhost/127.0.0.1 in
   `connect-src`; runtime connectivity was not probed. This does not establish
@@ -79,7 +82,8 @@ with a bridge-assigned sequence, not a raw native payload or live connection.
 `onDecodedEvent`/`onUpdate` full assistant text snapshots yield prefix deltas;
 transport metadata is never text; only an owner-projected, explicitly verified
 completion with final-state evidence (`finish_reason`) produces one terminal
-frame. Cancellation discards late frames; gaps, conflicting replays, unknown
+frame only after the callback source ends without a conflicting event.
+Cancellation discards late frames; gaps, conflicting replays, unknown
 tool content, premature close, unaccepted responses, and queue/text-budget overflow
 fail closed. The ledger claims each tool execution once, preserves uncertain
 delivery without redispatch, and accepts only an exact matching result.
@@ -95,6 +99,6 @@ G7 real Chat inference NOT RUN; G8 real streaming NOT RUN; G9 tool continuation
 NOT RUN; G10 live LiteLLM regression NOT RUN. The live config and listeners
 were not changed. Test command for the new contract:
 `python -B -m unittest tests.test_chatgpt_pc_renderer_contract`.
-The isolated run had 11 PASS and 1 SKIP: the optional existing-adapter
+The isolated run had 12 PASS and 1 SKIP: the optional existing-adapter
 integration fixture needs `litellm`, which is absent from this worktree's
 selected Python environment. It is not counted as LiteLLM regression proof.

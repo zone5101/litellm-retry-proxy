@@ -343,15 +343,22 @@ class IsolatedContractBackedIngress:
             raise RendererContractError("native tool continuation is not verified")
         translator = StreamEventTranslator(envelope.request_id)
         finished = False
+        terminal_frame: Mapping[str, Any] | None = None
         try:
             async for callback in self.renderer.stream(envelope):
                 translator.push(callback)
                 if translator.terminal:
                     translator.assert_complete()
-                    finished = True
                 for frame in translator.drain():
-                    yield frame
+                    if frame["kind"] == "finished":
+                        terminal_frame = frame
+                    else:
+                        yield frame
             translator.assert_complete()
+            if terminal_frame is None:
+                raise RendererContractError("completed stream has no terminal frame")
+            finished = True
+            yield terminal_frame
         finally:
             if not finished:
                 translator.cancel()

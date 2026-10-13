@@ -190,6 +190,7 @@ class FakeRenderer:
             (0, "onDecodedEvent", {"update": message("Hello")}),
             (1, "onUpdate", {"update": message("Hello world")}),
             (2, "onComplete", {"finish_reason": "stop"}),
+            (3, "onTransportClose", {}),
         ]:
             yield {"request_id": envelope.request_id, "sequence": sequence,
                    "callback": name, "conversation_id": "conv-1", **payload}
@@ -221,6 +222,26 @@ class TestIsolatedIngress(unittest.IsolatedAsyncioTestCase):
                    "params": {"request_id": "req-1", "conversation_id": "conv-1"}}
         with self.assertRaisesRegex(RendererContractError, "not verified"):
             [frame async for frame in ingress.stream(request)]
+
+    async def test_duplicate_terminal_is_not_emitted(self):
+        class DuplicateTerminal(FakeRenderer):
+            async def stream(self, envelope):
+                async for event in super().stream(envelope):
+                    yield event
+                yield {"request_id": envelope.request_id, "sequence": 4,
+                       "callback": "onComplete", "conversation_id": "conv-1",
+                       "finish_reason": "stop"}
+
+        renderer = DuplicateTerminal()
+        ingress = IsolatedContractBackedIngress(renderer)
+        emitted = []
+        with self.assertRaises(RendererContractError):
+            async for frame in ingress.stream({
+                "messages": [{"role": "user", "content": "hello"}], "params": {}
+            }):
+                emitted.append(frame)
+        self.assertFalse(any(frame["kind"] == "finished" for frame in emitted))
+        self.assertEqual(len(renderer.cancelled), 1)
 
 
 @unittest.skipIf(ChatGPTPCChatAdapter is None, "litellm is not installed in this Python environment")
