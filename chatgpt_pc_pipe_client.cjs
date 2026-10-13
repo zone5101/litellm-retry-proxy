@@ -3,22 +3,21 @@ const fs = require('node:fs');
 const net = require('node:net');
 const crypto = require('node:crypto');
 const runtimePath = process.env.CHATGPT_PC_BRIDGE_RUNTIME;
-const CANARY = 'Reply exactly CHATGPT_PC_RAW_OK and nothing else.';
 if (!runtimePath) throw Error('CHATGPT_PC_BRIDGE_RUNTIME is required');
 const runtime = JSON.parse(fs.readFileSync(runtimePath, 'utf8'));
 if (typeof runtime.pipe !== 'string' || typeof runtime.token !== 'string') throw Error('Invalid bridge runtime descriptor');
 let input = '';
 process.stdin.setEncoding('utf8');
-process.stdin.on('data', chunk => { input += chunk; if (input.length > 8192) process.exit(2); });
+process.stdin.on('data', chunk => { input += chunk; if (input.length > 65536) process.exit(2); });
 process.stdin.on('end', () => {
   let request;
   try { request = JSON.parse(input); } catch { throw Error('Invalid request JSON'); }
-  if (typeof request.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(request.request_id) || request.prompt !== CANARY) throw Error('Unsupported staging request');
+  if (typeof request.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(request.request_id) || typeof request.prompt !== 'string' || !request.prompt.trim() || Buffer.byteLength(request.prompt, 'utf8') > 8192 || request.prompt.includes('\0')) throw Error('Unsupported staging request');
   run(request);
 });
 function run(request) {
   let buffer = '', authorized = false, submitted = false, finished = false;
-  const texts = new Map();
+  let messageId = null, latestText = '';
   const socket = net.connect(runtime.pipe);
   const timeout = setTimeout(() => fail('timeout_unknown_do_not_replay'), 90000);
   function output(frame) { process.stdout.write(JSON.stringify(frame) + '\n'); }
@@ -54,15 +53,16 @@ function run(request) {
       if (frame.kind === 'snapshot') {
         const id = frame.data?.message_id, text = frame.data?.text;
         if (typeof id !== 'string' || typeof text !== 'string') { fail('invalid_snapshot'); return; }
-        const before = texts.get(id) || '';
-        if (!text.startsWith(before)) { fail('non_prefix_snapshot'); return; }
-        texts.set(id, text);
-        const delta = text.slice(before.length);
+        if (messageId !== null && messageId !== id) { fail('multiple_assistant_messages'); return; }
+        messageId = id;
+        if (!text.startsWith(latestText)) { fail('non_prefix_snapshot'); return; }
+        const delta = text.slice(latestText.length);
+        latestText = text;
         if (delta) output({ kind: 'delta', text: delta });
         continue;
       }
       if (frame.kind === 'terminal') {
-        if (finished || frame.data?.finish_reason !== 'stop' || [...texts.values()].join('') !== 'CHATGPT_PC_RAW_OK') { fail('invalid_terminal'); return; }
+        if (finished || frame.data?.finish_reason !== 'stop' || !messageId || !latestText) { fail('invalid_terminal'); return; }
         finished = true;
         clearTimeout(timeout);
         output({ kind: 'finished', finish_reason: 'stop' });

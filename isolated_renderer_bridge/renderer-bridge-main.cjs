@@ -11,7 +11,6 @@ const root = path.dirname(process.resourcesPath);
 const runtimeFile = path.join(root, 'renderer-bridge-runtime.json');
 const pipe = '\\\\.\\pipe\\chatgpt-pc-chat-' + crypto.randomBytes(12).toString('hex');
 const token = crypto.randomBytes(32).toString('hex');
-const canary = 'Reply exactly CHATGPT_PC_RAW_OK and nothing else.';
 let owner = null;
 let active = null;
 let server = null;
@@ -71,11 +70,11 @@ app.whenReady().then(() => {
           continue;
         }
         if (message?.type === 'cancel' && active?.socket === socket && message.request_id === active.id) { cancelActive(); send(socket, { kind: 'cancelled', request_id: message.request_id }); socket.end(); return; }
-        if (message?.type !== 'complete' || active || !owner || owner.isDestroyed() || typeof message.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(message.request_id) || message.prompt !== canary) {
+        if (message?.type !== 'complete' || active || !owner || owner.isDestroyed() || typeof message.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(message.request_id) || typeof message.prompt !== 'string' || !message.prompt.trim() || Buffer.byteLength(message.prompt, 'utf8') > 8192 || message.prompt.includes('\0')) {
           send(socket, { kind: 'error', code: 'invalid_or_unavailable_request' }); socket.end(); return;
         }
         active = { id: message.request_id, socket };
-        owner.send('chatgpt-pc-bridge:request', { operation: 'complete', request_id: active.id, prompt: canary });
+        owner.send('chatgpt-pc-bridge:request', { operation: 'complete', request_id: active.id, prompt: message.prompt });
       }
     });
     socket.on('close', () => { if (active?.socket === socket) cancelActive(); });

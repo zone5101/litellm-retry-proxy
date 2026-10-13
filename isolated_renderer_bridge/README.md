@@ -8,7 +8,8 @@ The root React `AppScope` provider mounts `renderer-bridge-component.js`. That
 component resolves the native service token `yD`, calls `Jwi(scope, ...)`, and
 observes `Zwi` callbacks. A narrow preload API carries requests and results to
 `renderer-bridge-main.cjs`. Main accepts a single authenticated request over a
-randomly named Windows pipe, limits the request to the exact canary text, and
+randomly named Windows pipe, limits the request to one text prompt of at most
+8192 UTF-8 bytes, and
 checks that renderer IPC comes from the main `app:` frame. It never sends
 session credentials through the pipe. The original app-host HTTP/auth path,
 `webSecurity`, and packaged CSP stay unchanged.
@@ -32,9 +33,24 @@ The staging client is `../chatgpt_pc_pipe_client.cjs`, called by
 uses `router_settings.num_retries: 0`. It was served only on `127.0.0.1:19493`
 with a separate random master key; the live `:4000` config was not changed.
 The pipe runtime descriptor and LiteLLM key are generated outside Git and
-must not be committed. The desktop app accepts only the one fixed canary,
-so this proof does not support arbitrary Copilot prompts, multi-turn history,
+must not be committed. The current bridge accepts one plain text user prompt
+at a time. It does not support Copilot's assembled multi-message prompts,
+multi-turn history,
 model-selected tools, or `Ywi` tool-result continuation.
+
+The v6 isolated copy accepted a different prompt, `What is 2 + 3? Answer using
+only a numeral.` Raw pipe request `prompt-20261013-v6-001` returned `5` and
+`finish_reason=stop`. Staging LiteLLM request `e2e-v6-20261013-001` returned
+HTTP 200 with SSE content `5`, `finish_reason=stop`, and `[DONE]`; its matching
+renderer audit recorded `onCompletion=completed` followed by terminal. This
+is real single-turn text E2E through staging, not a Copilot client acceptance.
+The v6 modified ASAR SHA-256 is
+`67473560C51E5BFD0AB90236E56A5A12A98271F7E7C54457C0E850A9CEFA65E2`;
+header SHA-256 is
+`457ab362f3511c9a4d7b0c2d4f2dadab112a49b805e7555b6722add8dbb7dee8`.
+The sanitized v6 [receipt](./evidence/renderer-v6-text-e2e-receipt.json)
+has SHA-256
+`BEF0630D412D2713DD959ED38A3529AA59403E7D51714BDF61F4787B435533F2`.
 
 Evidence from the isolated run:
 

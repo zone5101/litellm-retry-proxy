@@ -1,4 +1,4 @@
-﻿"""Real, single-canary named-pipe ingress for the isolated desktop bridge.
+﻿"""Real, text-only named-pipe ingress for the isolated desktop bridge.
 
 No ChatGPT credentials are read here. The production LiteLLM configuration does
 not import this module; unsupported requests fail before reaching the renderer.
@@ -13,8 +13,6 @@ from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
-
-CANARY = "Reply exactly CHATGPT_PC_RAW_OK and nothing else."
 
 
 class PipeIngressError(RuntimeError):
@@ -35,14 +33,18 @@ class NamedPipeQuickChatIngress:
         params = request.get("params") or {}
         if (not isinstance(messages, list) or len(messages) != 1 or
                 not isinstance(messages[0], Mapping) or messages[0].get("role") != "user" or
-                messages[0].get("content") != CANARY or not isinstance(params, Mapping)):
-            raise PipeIngressError("unsupported staging request; text-only canary, no history/tools")
+                not isinstance(params, Mapping)):
+            raise PipeIngressError("unsupported staging request; one text-only user message, no history/tools")
+        prompt = messages[0].get("content")
+        if (not isinstance(prompt, str) or not prompt.strip() or
+                len(prompt.encode("utf-8")) > 8192 or "\x00" in prompt):
+            raise PipeIngressError("invalid text prompt")
         if (params.get("tools") or params.get("functions") or
                 params.get("tool_choice") not in (None, "none", "auto") or
                 params.get("response_format") not in (None, {"type": "text"}) or
                 params.get("n") not in (None, 1)):
             raise PipeIngressError("unsupported staging request options")
-        return CANARY
+        return prompt
 
     async def stream(self, request: Mapping[str, Any]) -> AsyncIterator[Mapping[str, Any]]:
         prompt = self._prompt(request)

@@ -156,3 +156,27 @@ modified ChatGPT PC Chat Mode -> streaming SSE**. It is not a PASS for the
 full target of Copilot -> production LiteLLM -> arbitrary Chat Mode turns.
 The next frontier is a real VS Code Custom Endpoint client acceptance against
 staging, followed by explicit mapping of Copilot's messages/history/tools.
+
+### Single-turn text extension in the isolated copy
+
+The v6 copy replaced the fixed canary check with a bounded, one-user-message
+text request (8192 UTF-8 bytes maximum). The pipe still allows one active
+request, keeps exact request identity, and rejects history and tools. The
+`What is 2 + 3? Answer using only a numeral.` request returned `5` first over
+the raw bridge, then as an HTTP 200 LiteLLM staging SSE response with one
+content delta, `finish_reason=stop`, and `[DONE]`. The same staging request ID
+`e2e-v6-20261013-001` has a renderer audit ending in
+`onCompletion=completed` and terminal. The sanitized
+[receipt](./isolated_renderer_bridge/evidence/renderer-v6-text-e2e-receipt.json)
+has SHA-256
+`BEF0630D412D2713DD959ED38A3529AA59403E7D51714BDF61F4787B435533F2`;
+the [audit excerpt](./isolated_renderer_bridge/evidence/renderer-v6-audit-excerpt.jsonl)
+has SHA-256
+`FFD7CFE90D6C392DC24605CA774305FCD593CD3CEBB799B0D2BE7272BD06C542`.
+
+This extends the staging E2E PASS to an arbitrary single text turn. A Copilot
+client request was still not made: the active VS Code CLI offers `code chat`
+but no model-selection flag, and the available Computer Use native pipe was
+unavailable during this attempt. No user-profile model configuration was
+changed. Copilot's assembled messages, history, tool calls, cancellation from
+that client, and native `Ywi` continuation remain unverified.

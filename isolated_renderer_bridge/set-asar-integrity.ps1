@@ -4,8 +4,8 @@
 )
 $ErrorActionPreference = 'Stop'
 $stage = [IO.Path]::GetFullPath($StageApp)
-$tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
-if (-not $stage.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
+$isolationRoot = [IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Temp\chatgpt_renderer_isolation_20261013'))
+if (-not $stage.StartsWith(($isolationRoot + [IO.Path]::DirectorySeparatorChar), [StringComparison]::OrdinalIgnoreCase) -or
     (Split-Path -Path $stage -Leaf) -notlike 'scope-probe-v*-app' -or
     $stage -match 'WindowsApps') {
     throw 'Integrity update is restricted to a staged app copy in Temp.'

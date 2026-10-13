@@ -1,0 +1,17 @@
+{
+  "request_id": "e2e-v6-20261013-001",
+  "verdict": "STAGING_SINGLE_TURN_TEXT_E2E_PASS",
+  "client": "direct authenticated HTTP client",
+  "model": "chatgpt-pc-chat",
+  "prompt": "What is 2 + 3? Answer using only a numeral.",
+  "http_status": 200,
+  "sse_delta_text": "5",
+  "sse_finish_reason": "stop",
+  "sse_done_count": 1,
+  "renderer_on_completion": "completed",
+  "renderer_terminal_count": 1,
+  "renderer_audit_sha256": "FFD7CFE90D6C392DC24605CA774305FCD593CD3CEBB799B0D2BE7272BD06C542",
+  "modified_asar_sha256": "67473560C51E5BFD0AB90236E56A5A12A98271F7E7C54457C0E850A9CEFA65E2",
+  "copilot_client_called": false,
+  "production_litellm_modified": false
+}
