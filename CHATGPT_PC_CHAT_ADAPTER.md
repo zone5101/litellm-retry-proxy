@@ -25,3 +25,76 @@ Mock-backed unit tests are not real ChatGPT inference tests.
 Missing: verified native Chat ingress, tool-stream mapping, cancellation,
 tool-result continuation and terminal/replay E2E.
 Reference: canonical/checkpoints/CHATGPT_PC_NATIVE_PROVIDER_RESEARCH_20261012.md
+
+## Renderer-owned ingress frontier (isolated PoC, 2026-10-13)
+
+The installed `app.asar` SHA-256 remains
+`C5FDEF328CFA2AD9095786F9C3A7AAA447E68834D31299D6EF2592DA02029038`.
+In `webview/assets/app-initial-b8e1c8014bb4.js`, `Jwi` is exported as `wRt`
+and calls `Zwi`; `yD = fd(q, ({scope:e}) => new aln(e))` is exported as
+`dMn`. `Zwi` calls `e.get(yD).startCompletionStream(...)`. These exports are
+symbols, not a live scope handle. `app-shared-737655e1fb23.js` creates
+`AppScope` (`X=sO('AppScope')`), obtains its mounted value with `hA(X)` through
+React context, and initializes the service lazily through the scope binding.
+The root renderer also mounts an app-scope provider (`$c({scope:q,...})` in
+`app-initial-b8e1c8014bb4.js`); Quick Chat uses the mounted context. A
+separately imported module cannot acquire the active scope merely by
+importing `dMn` or `wRt`. `app-primary-19fe57fd8c00.js` imports both aliases
+for internal use, which does not create an external API.
+
+Candidate ingress outcomes for this build:
+
+- **Native `Jwi` in Quick Chat:** owned by the trusted renderer. A mounted
+  component passes the live scope; result callbacks stay in the renderer.
+  This is the preferred native call *if* an authorized owner ever exposes an
+  inbound interface. No external request channel to that component exists.
+- **App-host MessagePort/IPC:** owned by the preload/main process. The renderer
+  creates `connect-app-host`; main checks the registered trusted sender. It
+  supplies outbound authenticated fetch, not an external `Jwi` dispatch or
+  response stream. An adapter cannot impersonate this sender.
+- **Localhost WebSocket/HTTP from the renderer:** no listener or renderer
+  receiver is shipped. `webview/index.html` has no localhost/127.0.0.1 in
+  `connect-src`; runtime connectivity was not probed. This does not establish
+  CSP compatibility, and changing CSP/webSecurity is outside scope.
+- **Plugin/composer extension:** official plugin documentation describes
+  message sending from a plugin UI and tool/data contributions. It does not
+  document an external-request-to-model stream, tool-call interception, or
+  tool-result continuation returned to the plugin. Main-process code attaches
+  MCP App content as a separate sandboxed guest WebContents with context
+  isolation and web security, not as a child of the root `AppScope` provider.
+  Importing `dMn` there would not resolve the parent's live scope.
+- **Isolated vendor-app instrumentation:** could be designed around `Jwi` in
+  a separate app copy by mounting a narrow bridge under the root `AppScope`
+  provider and providing a validated inbound channel and result/cancel
+  callbacks. This would modify the vendor bundle and potentially its package
+  signature, authentication behavior and update compatibility. No app copy
+  was modified or run; the intervention remains unverified and requires a
+  separately authorized experiment before it can be claimed as a path.
+
+`chatgpt_pc_renderer_contract.py` provides a neutral `ChatTurnEnvelope`,
+`RendererIngressContract`, `IsolatedContractBackedIngress`, bounded
+`StreamEventTranslator`, and exact-identity `ToolContinuationLedger`. The
+adapter-shaped ingress is not auto-installed. Its input is a *proposed owner-projected callback*
+with a bridge-assigned sequence, not a raw native payload or live connection.
+`onDecodedEvent`/`onUpdate` full assistant text snapshots yield prefix deltas;
+transport metadata is never text; only an owner-projected, explicitly verified
+completion with final-state evidence (`finish_reason`) produces one terminal
+frame. Cancellation discards late frames; gaps, conflicting replays, unknown
+tool content, premature close, unaccepted responses, and queue/text-budget overflow
+fail closed. The ledger claims each tool execution once, preserves uncertain
+delivery without redispatch, and accepts only an exact matching result.
+A future owner must separately prove how native tool messages are
+decoded and how `Ywi` receives the exact `callId`, `conversationId`, `toolName`
+and result. No live tool call is asserted.
+
+Evidence gates: G1 source identity PASS; G2 token export PASS; G3 live scope
+access from an external adapter BLOCKED; G4 ingress transport BLOCKED; G5 CSP
+and IPC compatibility NOT PROVEN for a bridge (static CSP and trusted IPC
+boundary verified); G6 isolated protocol PoC PASS for its own contract tests;
+G7 real Chat inference NOT RUN; G8 real streaming NOT RUN; G9 tool continuation
+NOT RUN; G10 live LiteLLM regression NOT RUN. The live config and listeners
+were not changed. Test command for the new contract:
+`python -B -m unittest tests.test_chatgpt_pc_renderer_contract`.
+The isolated run had 11 PASS and 1 SKIP: the optional existing-adapter
+integration fixture needs `litellm`, which is absent from this worktree's
+selected Python environment. It is not counted as LiteLLM regression proof.
