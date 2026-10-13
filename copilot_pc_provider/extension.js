@@ -5,7 +5,7 @@ const vscode = require('vscode');
 const os = require('node:os'), fs = require('node:fs'), path = require('node:path');
 const net = require('node:net'), crypto = require('node:crypto'), cp = require('node:child_process');
 const {makePrompt, readSSE} = require('./protocol.cjs');
-const {validateReferences} = require('./participant-context.cjs');
+const {validateReferences, countOmittedHistory} = require('./participant-context.cjs');
 const PORT = 19493, VENDOR = 'chatgpt-pc-isolated', MODEL = 'chatgpt-pc-chat';
 const SOURCE_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_ROOT = path.join(os.homedir(), '.litellm-retry-proxy.worktrees', 'chatgpt-pc-chat-adapter-20261013');
@@ -144,11 +144,15 @@ async function handleDirectChat(request, context, stream, token) {
   audit('participant.enter',{id, historyTurns:context?.history?.length || 0,
     referenceCount:request?.references?.length || 0});
   try {
-    const {omittedImplicit} = validateReferences(request);
-    if (context?.history?.length) throw new Error('PC_PARTICIPANT_HISTORY_UNSUPPORTED');
-    if (omittedImplicit) {
-      audit('participant.implicit_context_omitted',{id,count:omittedImplicit});
-      stream.warning?.('Automatic editor context was not sent to ChatGPT PC; only your typed text is used.');
+    const {omittedReferences} = validateReferences(request);
+    const omittedHistory = countOmittedHistory(context);
+    if (omittedReferences || omittedHistory) {
+      audit('participant.context_omitted',{id,references:omittedReferences,historyTurns:omittedHistory});
+      // Always make omitted context visible to users; NEVER read or send reference values.
+      const warning='Only your typed text was sent to ChatGPT PC. ' +
+        'VS Code references/attachments and earlier chat history were NOT included.';
+      if (typeof stream.warning === 'function') stream.warning(warning);
+      else stream.markdown('**Note:** '+warning+'\n\n');
     }
     if (token?.isCancellationRequested) throw abortError();
     const prompt=makePrompt([{role:1,content:[{value:request?.prompt}]}]);

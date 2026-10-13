@@ -23,11 +23,13 @@ test('declares isolated Chat participant and a tool-free provider',async()=>{
   const models=await registrations.model.provider.provideLanguageModelChatInformation();
   assert.equal(models.length,1);assert.equal(models[0].capabilities.toolCalling,false);
 });
-test('participant rejects references instead of silently dropping them',async()=>{
-  await assert.rejects(handler({prompt:'hello',references:[{id:'file'}]},{history:[]},{markdown(){}},{}),/PC_PARTICIPANT_REFERENCES_UNSUPPORTED/);
+test('participant rejects tool references, never calls model with tools',async()=>{
+  await assert.rejects(handler({prompt:'hello',references:[{id:'any'}],toolReferences:[{name:'read_file'}]},
+    {history:[]},{markdown(){}},{}),/PC_PARTICIPANT_TOOLS_UNSUPPORTED/);
 });
-test('participant rejects unseen history instead of silently dropping it',async()=>{
-  await assert.rejects(handler({prompt:'hello'},{history:[{prompt:'a'}]},{markdown(){}},{}),/PC_PARTICIPANT_HISTORY_UNSUPPORTED/);
+test('participant rejects malformed history before invoking backend',async()=>{
+  await assert.rejects(handler({prompt:'hello'},{history:'invalid'},{markdown(){}},{}),
+    /PC_PARTICIPANT_HISTORY_INVALID/);
 });
 test('participant rejects oversize prompt before spawning stage',async()=>{
   await assert.rejects(handler({prompt:'x'.repeat(8193)},{history:[]},{markdown(){}},{}),/PC_PROVIDER_INPUT_OVER_8192_BYTES/);

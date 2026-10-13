@@ -12,13 +12,13 @@ FILES = ("package.json", "extension.js", "protocol.cjs", "README.md", "test.cjs"
 def main(out: Path) -> None:
     info = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     assert (info["name"], info["publisher"], info["version"]) == (
-        "chatgpt-pc-staging-copilot", "livingos-local", "0.0.4"
+        "chatgpt-pc-staging-copilot", "livingos-local", "0.0.5"
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     manifest = """<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
   <Metadata>
-    <Identity Id="chatgpt-pc-staging-copilot" Version="0.0.4" Publisher="livingos-local" Language="en-US"/>
+    <Identity Id="chatgpt-pc-staging-copilot" Version="0.0.5" Publisher="livingos-local" Language="en-US"/>
     <DisplayName>ChatGPT PC Staging Copilot Provider</DisplayName>
     <Description xml:space="preserve">Isolated local text-only model for Copilot verification</Description>
     <Categories>Other</Categories>

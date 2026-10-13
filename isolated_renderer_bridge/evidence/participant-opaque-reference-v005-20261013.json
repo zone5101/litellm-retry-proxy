@@ -1,0 +1,14 @@
+{
+  "verdict": "PASS",
+  "kind": "installed-participant-shim-to-real-isolated-ChatGPT-PC-not-Copilot-UI",
+  "participant": "chatgpt-pc-staging-copilot.chatgptpc",
+  "responseText": "PC_OPAQUE_REF_V005_20261013",
+  "parts": 1,
+  "omittedReferences": 1,
+  "omittedHistory": 1,
+  "warningCount": 1,
+  "referenceValueAccessed": false,
+  "historyValueAccessed": false,
+  "stagePort": 19493,
+  "productionPortTouched": false
+}
