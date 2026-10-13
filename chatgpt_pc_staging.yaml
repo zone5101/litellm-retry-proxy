@@ -1,0 +1,10 @@
+model_list:
+  - model_name: chatgpt-pc-chat
+    litellm_params:
+      model: chatgpt-pc-chat/native
+router_settings:
+  num_retries: 0
+litellm_settings:
+  custom_provider_map:
+    - provider: chatgpt-pc-chat
+      custom_handler: chatgpt_pc_staging.chatgpt_pc_chat_adapter

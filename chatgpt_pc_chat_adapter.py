@@ -68,11 +68,11 @@ class ChatGPTPCChatAdapter(CustomLLM):
             kind = frame.get("kind")
             if kind == "delta" and isinstance(frame.get("text"), str):
                 yield {"text": frame["text"], "index": 0, "is_finished": False,
-                       "finish_reason": None, "tool_use": None}
+                       "finish_reason": None, "tool_use": None, "usage": None}
             elif kind == "finished" and frame.get("finish_reason") in ("stop", "tool_calls", "length", "content_filter"):
                 finished = True
                 yield {"text": "", "index": 0, "is_finished": True,
-                       "finish_reason": frame["finish_reason"], "tool_use": None}
+                       "finish_reason": frame["finish_reason"], "tool_use": None, "usage": None}
             else:
                 raise ContractError("unsupported streaming/tool frame: fail closed")
         if not finished:

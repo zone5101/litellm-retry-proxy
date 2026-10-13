@@ -31,6 +31,7 @@ class TestBoundary(unittest.IsolatedAsyncioTestCase):
         frames = [f async for f in a.astreaming("m",[{"role":"user","content":"hi"}],{"stream":True})]
         self.assertEqual("".join(f["text"] for f in frames), "FAKE_TEST_ONLY")
         self.assertEqual(sum(f["is_finished"] for f in frames), 1)
+        self.assertTrue(all('usage' in f for f in frames))
     async def test_missing_terminal(self):
         a = ChatGPTPCChatAdapter()
         a.install_verified_ingress(Broken())

@@ -1,0 +1,12 @@
+{
+  "request_id": "e2e-7a576d2cbccd44abf058daf1",
+  "verdict": "STAGING_LITELLM_E2E_PASS",
+  "http_status": 200,
+  "response_text": "CHATGPT_PC_RAW_OK",
+  "sse_events": 2,
+  "delta_events": 1,
+  "read_chunks": 3,
+  "done_count": 1,
+  "finish_reason": "stop",
+  "errors": []
+}

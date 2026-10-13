@@ -1,0 +1,18 @@
+{
+  "request_id": "canary-e5d71d70a0cec0088aaa6f8a",
+  "verdict": "RAW_CHAT_PASS",
+  "reason": "terminal_received",
+  "response_text": "CHATGPT_PC_RAW_OK",
+  "event_kinds": [
+    "hello",
+    "submitted",
+    "response",
+    "snapshot",
+    "snapshot",
+    "snapshot",
+    "snapshot",
+    "snapshot",
+    "snapshot",
+    "terminal"
+  ]
+}
