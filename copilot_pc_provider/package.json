@@ -3,7 +3,7 @@
   "displayName": "ChatGPT PC Staging Copilot Provider",
   "description": "Isolated text-only ChatGPT PC Chat Mode provider for controlled Copilot E2E tests",
   "publisher": "livingos-local",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "engines": {
     "vscode": "^1.141.0"
@@ -34,9 +34,18 @@
           "description": "Absolute path to existing ChatGPT PC bridge worktree; empty uses canonical per-user worktree."
         }
       }
-    }
+    },
+    "chatParticipants": [
+      {
+        "id": "chatgpt-pc-staging-copilot.chatgptpc",
+        "name": "chatgptpc",
+        "fullName": "ChatGPT PC Isolated",
+        "description": "Direct single-turn text chat with isolated ChatGPT PC; no tools or history",
+        "isSticky": true
+      }
+    ]
   },
   "scripts": {
-    "test": "node --test test.cjs"
+    "test": "node --test test.cjs participant-test.cjs"
   }
 }

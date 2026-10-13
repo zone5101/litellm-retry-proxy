@@ -1,0 +1,10 @@
+{
+  "verdict": "PARTICIPANT_HOST_REAL_BRIDGE_PASS",
+  "mode": "VSCode Chat Participant handler called from Node host shim; not VS Code UI request",
+  "participant": "chatgpt-pc-staging-copilot.chatgptpc",
+  "response_text": "PC_PARTICIPANT_E2E_20261013",
+  "markdown_parts": 2,
+  "historySupported": false,
+  "toolCalling": false,
+  "backend": "isolated live ChatGPT PC via staging LiteLLM"
+}

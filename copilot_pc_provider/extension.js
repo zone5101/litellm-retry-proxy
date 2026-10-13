@@ -136,15 +136,57 @@ const provider={
  }
 
 };
+const PARTICIPANT_ID = 'chatgpt-pc-staging-copilot.chatgptpc';
+async function handleDirectChat(request, context, stream, token) {
+  const id=crypto.randomBytes(5).toString('hex');
+  let stage='admission', textParts=0;
+  audit('participant.enter',{id, historyTurns:context?.history?.length || 0,
+    referenceCount:request?.references?.length || 0});
+  try {
+    if (request?.references?.length || request?.toolReferences?.length)
+      throw new Error('PC_PARTICIPANT_REFERENCES_UNSUPPORTED');
+    if (context?.history?.length) throw new Error('PC_PARTICIPANT_HISTORY_UNSUPPORTED');
+    if (token?.isCancellationRequested) throw abortError();
+    const prompt=makePrompt([{role:1,content:[{value:request?.prompt}]}]);
+    audit('participant.admitted',{id,promptBytes:Buffer.byteLength(prompt,'utf8')});
+    stage='stage_start';
+    const key=await owner.start();
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),70000);
+    const cancel=token?.onCancellationRequested?.(()=>controller.abort());
+    try {
+      stage='http_request';
+      const response=await fetch('http://127.0.0.1:'+PORT+'/v1/chat/completions',{
+        method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',Accept:'text/event-stream'},
+        body:JSON.stringify({model:MODEL,stream:true,messages:[{role:'user',content:prompt}]}),
+        signal:controller.signal
+      });
+      audit('participant.http',{id,status:response.status});
+      if(!response.ok) throw new Error('PC_PARTICIPANT_HTTP_'+response.status);
+      stage='sse';
+      const terminal=await readSSE(response.body,part=>{if(part){textParts++;stream.markdown(part);}});
+      audit('participant.pass',{id,textParts,doneCount:terminal.doneCount,finishReason:terminal.finishReason});
+      return {metadata:{mode:'isolated-text-only',streamParts:textParts}};
+    } finally {
+      clearTimeout(timeout);
+      cancel?.dispose?.();
+    }
+  } catch(e) {
+    audit('participant.fail',{id,stage,errorCode:String(e?.message||e).slice(0,120)});
+    throw e;
+  }
+}
 function activate(context) {
  output=vscode.window.createOutputChannel('ChatGPT PC Staging Provider');
  context.subscriptions.push(output);
  context.subscriptions.push(vscode.lm.registerLanguageModelChatProvider(VENDOR,provider));
+ context.subscriptions.push(vscode.chat.createChatParticipant(PARTICIPANT_ID,handleDirectChat));
  context.subscriptions.push(vscode.commands.registerCommand('chatgptPcStaging.stop',()=>{
    owner.stop();output.appendLine('Stopped owned staging process');}));
  context.subscriptions.push({dispose(){owner.stop();}});
  output.appendLine('Provider registered: '+VENDOR+'; model '+MODEL+'; toolCalling=false');
  audit('provider.activated',{vendor:VENDOR,model:MODEL,maxInputTokens:2048,toolCalling:false});
+ audit('participant.registered',{participant:PARTICIPANT_ID,historySupported:false,toolCalling:false});
 }
 function deactivate(){owner.stop();}
 module.exports={activate,deactivate};
