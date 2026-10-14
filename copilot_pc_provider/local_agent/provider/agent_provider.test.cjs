@@ -63,3 +63,5 @@ test('refuses unoffered tool, mismatched call, replay and incomplete history',as
   {tools:[tool]},reporter().progress,null,api),/UNBOUND_HISTORY/);
  assert.equal(requests,1);
 });
+
+test('native admission rejection before dispatch does not poison first request',async()=>{let attempt=0;const br=new LocalAgentBridge({nativeExchange:async()=>{attempt++;if(attempt===1)throw Object.assign(new Error('LOCAL_AGENT_SHARED_ADMISSION_WAIT_EXPIRED_NOT_DISPATCHED'),{code:'WAIT_EXPIRED_NOT_DISPATCHED'});return {conversationId:'local-chatgpt:retry-safe',text:'{\"kind\":\"final\",\"text\":\"recovered\"}',reused:false};}});const input=user('Hello after queue');await assert.rejects(br.provide([input],{tools:[tool]},reporter().progress,null,api),/NOT_DISPATCHED/);const p=reporter();const out=await br.provide([input],{tools:[tool]},p.progress,null,api);assert.equal(out.phase,'READY');assert.equal(p.parts[0].value,'recovered');assert.equal(attempt,2);});
