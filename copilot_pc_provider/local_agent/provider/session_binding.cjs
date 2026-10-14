@@ -35,9 +35,10 @@ class SessionBinding {
    fail('UNVERIFIED_HISTORY_NO_NEW_CHAT');
   }
   const requestId='v11req_'+crypto.randomBytes(14).toString('hex');
+  const previousState=entry.state;
   entry.state='INFLIGHT';entry.requestId=requestId;
   return {sessionId:entry.sessionId,conversationId:entry.conversationId,
-    requestId,prompt:last.text,messages:m,entry};
+    requestId,prompt:last.text,messages:m,entry,previousState};
  }
  complete(turn,conversationId,reply){
   const e=this.entries.get(turn.sessionId);
@@ -48,6 +49,10 @@ class SessionBinding {
   e.conversationId=conversationId;
   e.expected=historyKey([...turn.messages,{role:'assistant',text:reply}]);
   e.state='READY';e.requestId=null;
+ }
+ notDispatched(turn){const e=this.entries.get(turn.sessionId);
+  if(e!==turn.entry||e.requestId!==turn.requestId||e.state!=='INFLIGHT')fail('NOT_DISPATCHED_IDENTITY_INVALID');
+  if(turn.previousState==='NEW')this.entries.delete(turn.sessionId);else{e.state=turn.previousState;e.requestId=null;}
  }
  unknown(turn){const e=this.entries.get(turn.sessionId);
   if(e===turn.entry&&e.requestId===turn.requestId){e.state='UNKNOWN_DO_NOT_REPLAY';e.requestId=null;}}
