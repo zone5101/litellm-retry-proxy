@@ -46,7 +46,7 @@
     ]
   },
   "scripts": {
-    "test": "node --test test.cjs participant-test.cjs participant-context-test.cjs agent_provider.test.cjs provider_host_dispatch.test.cjs local_v009_regression.test.cjs native_shared_admission.test.cjs provider_native_admission.test.cjs"
+    "test": "node --test test.cjs participant-test.cjs participant-context-test.cjs agent_provider.test.cjs provider_host_dispatch.test.cjs local_v009_regression.test.cjs native_shared_admission.test.cjs provider_native_admission.test.cjs recovery_classify.test.cjs"
   },
   "__metadata": {
     "installedTimestamp": 1791889848761,

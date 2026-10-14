@@ -14,3 +14,17 @@ Proof:
 - Installed v0.0.7 remains unchanged with `toolCalling=false`.
 
 Do NOT claim full host tool E2E PASS or submit BAM activation, or claim Local Agent acceptance until actual end-to-end host and native backend evidence exists. Also do not use Git/BAM as an alternative route around a rejected tool action.
+
+## Binding UNKNOWN recovery and owner continuation (2026-10-14)
+
+For v0.0.10+ admission incidents, read [UNKNOWN_RECOVERY_CONTRACT_CURRENT.md](./UNKNOWN_RECOVERY_CONTRACT_CURRENT.md) **before** concluding a task is blocked. The contract is normative, not an optional investigation guide.
+
+- `UNKNOWN_DO_NOT_REPLAY` and `DISPATCHING` mean **nonterminal recovery required**, not "done/failed" and not proof of native submission.
+- The original request owner must correlate durable request ID, renderer generation, exact native submission acknowledgement, terminal and VS Code host events. No implicit release by PID/time/no logs.
+- `WAIT_EXPIRED_NOT_DISPATCHED` applies only to the waiting request and does not reconcile the request holding the lock.
+- If direct evidence is missing, produce a bounded `PENDING_AUTHORIZED_RECONCILIATION` checkpoint with owner, missing capability, evidence refs, exact next action; keep ownership and fix future telemetry on Git. Do not ask the user to serve as command relay.
+- **Read-only diagnosis:** `node recovery_classify.cjs <absolute-admission-lock-dir>`. This only classifies and prints JSON; it cannot release a lock, retry a prompt or claim actual E2E.
+- Mandatory targeted tests: `node --test recovery_classify.test.cjs`. Production recovery requires an independent authority-backed CAS workflow; this classifier alone is not that workflow.
+
+Current live legacy incident: owner PID 33872, token `5900492f-8926-4f9e-8f4d-dbcdf666dc7b`, phase `DISPATCHING` without durable native request ID. The only grounded classification is `INSTRUMENTATION_GAP` and pending authorized reconciliation, until new independent evidence resolves the original delivery. Do not delete that lock to make tests pass.
+
