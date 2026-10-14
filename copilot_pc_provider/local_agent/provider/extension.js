@@ -8,7 +8,7 @@ const {makePrompt, readSSE} = require('./protocol.cjs');
 const {provideLocal}=require('./native_local_session.cjs');
 const {LocalAgentBridge}=require('./agent_provider.cjs');
 const localAgentBridge=new LocalAgentBridge();
-const {SharedNativeAdmission}=require('../native_shared_admission.cjs');
+const {SharedNativeAdmission}=require('./native_shared_admission.cjs');
 const nativeAdmission=new SharedNativeAdmission();
 function nativeFingerprint(messages,options){
   const payload={
@@ -112,7 +112,7 @@ function audit(stage, data={}) {
 }
 const provider={
  async provideLanguageModelChatInformation() {
-   return [{id:MODEL,name:'ChatGPT PC — Local Agent preview',family:'chatgpt-pc-text',version:'v6-agent-preview-010',
+   return [{id:MODEL,name:'ChatGPT PC â€” Local Agent preview',family:'chatgpt-pc-text',version:'v6-agent-preview-010',
      detail:'EXPERIMENTAL Local Agent adapter; tool execution not E2E verified',maxInputTokens:2048,maxOutputTokens:1024,
      isBYOK:true,isUserSelectable:true,capabilities:{toolCalling:true,imageInput:false}}];
  },
