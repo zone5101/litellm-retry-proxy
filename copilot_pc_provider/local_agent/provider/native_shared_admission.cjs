@@ -110,7 +110,6 @@ class SharedNativeAdmission{
    if(owner!==null){
     if(typeof owner.token!=='string'||typeof owner.fingerprint!=='string'||typeof owner.phase!=='string')
       throw new AdmissionError('OWNER_UNVERIFIED_DO_NOT_REPLAY');
-    if(owner.fingerprint===fingerprint)throw new AdmissionError('DUPLICATE_INFLIGHT_NOT_DISPATCHED');
     if(owner.phase==='DISPATCHING'&&typeof reconcile==='function'&&Date.now()-lastRecoveryCheck>=Math.max(250,this.retryMs*2)){
      lastRecoveryCheck=Date.now();
      let evidence=null;try{evidence=await reconcile(owner)}catch(e){throw new AdmissionError('RECONCILIATION_UNAVAILABLE_DO_NOT_REPLAY',e)}
@@ -120,6 +119,7 @@ class SharedNativeAdmission{
       continue;
      }
     }
+    if(owner.fingerprint===fingerprint)throw new AdmissionError('DUPLICATE_INFLIGHT_NOT_DISPATCHED');
    }
    const elapsed=Date.now()-started;
    if(elapsed>=this.maxWaitMs)throw new AdmissionError('WAIT_EXPIRED_NOT_DISPATCHED');
