@@ -6,17 +6,18 @@ const os=require('node:os');
 const cp=require('node:child_process');
 const rl=require('node:readline');
 const {SharedNativeAdmission,fingerprintNativePrompt}=require('./native_shared_admission.cjs');
+const {reconcileRendererRequest}=require('./native_renderer_reconciler.cjs');
 const sharedNativeAdmission=new SharedNativeAdmission();
 const runtime=path.join(os.tmpdir(),'chatgpt_renderer_isolation_20261013','scope-probe-v11-app','renderer-bridge-runtime.json');
 const client=path.join(__dirname,'chatgpt_pc_pipe_probe_v11.cjs');
 const fail=reason=>{throw Error('REA_NATIVE_EXCHANGE_'+reason)};
-async function exchangeUnlocked({sessionId,conversationId=null,prompt,token}){
+async function exchangeUnlocked({requestId,sessionId,conversationId=null,prompt,token}){
  if(!sessionId||typeof sessionId!=='string'||!/^agent\.[a-f0-9]{24}$/.test(sessionId)||
     conversationId!==null&&(typeof conversationId!=='string'||conversationId.length>128)||
     typeof prompt!=='string'||!prompt.trim()||Buffer.byteLength(prompt)>8192)
    fail('INPUT_REJECTED');
  if(!fs.existsSync(runtime)||!fs.existsSync(client))fail('RUNTIME_MISSING');
- const requestId='v11req_'+crypto.randomBytes(12).toString('hex');
+ requestId=requestId||'v11req_'+crypto.randomBytes(12).toString('hex');
  const child=cp.spawn(process.execPath,[client],{windowsHide:true,env:{...process.env,CHATGPT_PC_BRIDGE_RUNTIME:runtime},stdio:['pipe','pipe','pipe']});
  const onCancel=token?.onCancellationRequested?.(()=>child.kill());
  let bound=null,body='',terminal=null,unexpectedStderr=false,spawnError=null,toolSeen=false;
@@ -65,6 +66,9 @@ async function exchange(args){
  const {sessionId,conversationId=null,prompt,token}=args||{};
  if(!sessionId||typeof sessionId!=='string'||!/^agent\.[a-f0-9]{24}$/.test(sessionId)||conversationId!==null&&(typeof conversationId!=='string'||conversationId.length>128)||typeof prompt!=='string'||!prompt.trim()||Buffer.byteLength(prompt)>8192)fail('INPUT_REJECTED');
  if(!fs.existsSync(runtime)||!fs.existsSync(client))fail('RUNTIME_MISSING');
- return sharedNativeAdmission.run({fingerprint:fingerprintNativePrompt('agent',conversationId,prompt),token,dispatch:()=>exchangeUnlocked(args)});
+ const requestId='v11req_'+crypto.randomBytes(12).toString('hex');
+ return sharedNativeAdmission.run({fingerprint:fingerprintNativePrompt('agent',conversationId,prompt),token,
+  requestId,route:'agent',sessionId,conversationId,reconcile:reconcileRendererRequest,
+  dispatch:()=>exchangeUnlocked({...args,requestId})});
 }
 module.exports={exchange};

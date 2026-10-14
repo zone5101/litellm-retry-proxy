@@ -3,6 +3,7 @@ const vscode=require('vscode'),fs=require('node:fs'),os=require('node:os'),path=
 const {makePrompt}=require('./protocol.cjs');
 const {SessionBinding}=require('./session_binding.cjs');
 const {SharedNativeAdmission,fingerprintNativePrompt,isNotDispatched}=require('./native_shared_admission.cjs');
+const {reconcileRendererRequest}=require('./native_renderer_reconciler.cjs');
 const sharedNativeAdmission=new SharedNativeAdmission();
 const registry=new SessionBinding({maxSessions:16});
 const runtime=path.join(os.tmpdir(),'chatgpt_renderer_isolation_20261013','scope-probe-v11-app','renderer-bridge-runtime.json');
@@ -59,6 +60,8 @@ async function provideLocal(messages,options,progress,token,logger){
  const turn=registry.admit(messages);
  if(turn.conversationId===null)turn.prompt=makePrompt(messages);
  audit('request.admitted','reused='+(turn.conversationId!==null));
- try{await sharedNativeAdmission.run({fingerprint:fingerprintNativePrompt('text',turn.conversationId,turn.prompt),token,dispatch:()=>runClient(turn,progress,token)});}catch(error){if(isNotDispatched(error))registry.notDispatched(turn);throw error;}
+ try{await sharedNativeAdmission.run({fingerprint:fingerprintNativePrompt('text',turn.conversationId,turn.prompt),token,
+  requestId:turn.requestId,route:'text',sessionId:turn.sessionId,conversationId:turn.conversationId,
+  reconcile:reconcileRendererRequest,dispatch:()=>runClient(turn,progress,token)});}catch(error){if(isNotDispatched(error))registry.notDispatched(turn);throw error;}
 }
 module.exports={provideLocal};

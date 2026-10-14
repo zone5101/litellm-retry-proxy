@@ -1,9 +1,9 @@
 {
   "name": "chatgpt-pc-staging-copilot",
   "displayName": "ChatGPT PC Staging Copilot Provider",
-  "description": "v6 Local Agent preview 0.0.10 with shared cross-process native renderer admission",
+  "description": "v6 Local Agent preview 0.0.11 with terminal-receipt admission recovery",
   "publisher": "livingos-local",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "private": true,
   "engines": {
     "vscode": "^1.141.0"
@@ -46,7 +46,7 @@
     ]
   },
   "scripts": {
-    "test": "node --test test.cjs participant-test.cjs participant-context-test.cjs agent_provider.test.cjs provider_host_dispatch.test.cjs local_v009_regression.test.cjs native_shared_admission.test.cjs provider_native_admission.test.cjs"
+    "test": "node --test test.cjs participant-test.cjs participant-context-test.cjs agent_provider.test.cjs provider_host_dispatch.test.cjs local_v009_regression.test.cjs native_shared_admission.test.cjs native_renderer_reconciler.test.cjs provider_native_admission.test.cjs"
   },
   "__metadata": {
     "installedTimestamp": 1791889848761,
