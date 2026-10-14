@@ -8,25 +8,6 @@ const {makePrompt, readSSE} = require('./protocol.cjs');
 const {provideLocal}=require('./native_local_session.cjs');
 const {LocalAgentBridge}=require('./agent_provider.cjs');
 const localAgentBridge=new LocalAgentBridge();
-const {SharedNativeAdmission}=require('./native_shared_admission.cjs');
-const nativeAdmission=new SharedNativeAdmission();
-function nativeFingerprint(messages,options){
-  const payload={
-    messages:Array.isArray(messages)?messages.map(m=>({
-      role:m?.role,
-      name:typeof m?.name==='string'?m.name:null,
-      content:Array.isArray(m?.content)?m.content.map(p=>({
-        text:typeof p?.value==='string'?p.value:null,
-        callId:typeof p?.callId==='string'?p.callId:null,
-        toolName:typeof p?.name==='string'?p.name:null,
-        input:p?.input&&typeof p.input==='object'?p.input:null
-      })):[]
-    })):[],
-    tools:Array.isArray(options?.tools)?options.tools.map(t=>t?.name):[],
-    toolMode:options?.toolMode?.kind??null
-  };
-  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-}
 const {validateReferences, countOmittedHistory} = require('./participant-context.cjs');
 const PORT = 19493, VENDOR = 'chatgpt-pc-isolated', MODEL = 'chatgpt-pc-chat';
 const SOURCE_ROOT = path.resolve(__dirname, '..');
@@ -123,15 +104,9 @@ const provider={
    const id=crypto.randomBytes(5).toString('hex');
    audit('request.enter',{id,messageCount:Array.isArray(messages)?messages.length:null,requestedTools:Array.isArray(options?.tools)?options.tools.length:0});
    try {
-     await nativeAdmission.run({
-       fingerprint:nativeFingerprint(messages,options),
-       signal:token,
-       dispatch:async()=>{
-         if(Array.isArray(options?.tools)&&options.tools.length)
-           return localAgentBridge.provide(messages,options,progress,token,vscode);
-         return provideLocal(messages,options,progress,token,audit);
-       }
-     });
+     if(Array.isArray(options?.tools)&&options.tools.length)
+       await localAgentBridge.provide(messages,options,progress,token,vscode);
+     else await provideLocal(messages,options,progress,token,audit);
      audit('request.pass',{id,transport:'native-session'});
    } catch(error) {
      audit('request.fail',{id,transport:'native-session',errorCode:String(error?.message||error).slice(0,120)});
