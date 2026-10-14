@@ -75,7 +75,8 @@ class LocalAgentBridge{
      prompt=preparePrompt(messageText(last),[...offered.values()],sys);
    }
    if(this.busy.has(entry.sessionId))fail('CONCURRENT_REQUEST');
-   if(entry.state==='NEW')this.entries.set(entry.sessionId,entry);
+   const preDispatchState=entry.state;
+   if(preDispatchState==='NEW')this.entries.set(entry.sessionId,entry);
    entry.offered=offered;
    entry.state='INFLIGHT';
    this.busy.add(entry.sessionId);
@@ -98,7 +99,9 @@ class LocalAgentBridge{
      }
      return {phase:entry.state,reused:output.reused,toolCall:action.kind==='tool_call',reason};
    }catch(error){
-     entry.state='UNKNOWN_DO_NOT_REPLAY';
+     const notDispatched=/_NOT_DISPATCHED(?:$|_)/.test(String(error?.code||error?.message||error));
+     if(notDispatched){if(preDispatchState==='NEW')this.entries.delete(entry.sessionId);else entry.state=preDispatchState;}
+     else entry.state='UNKNOWN_DO_NOT_REPLAY';
      throw error;
    }finally{this.busy.delete(entry.sessionId)}
  }
