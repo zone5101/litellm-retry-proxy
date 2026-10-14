@@ -51,3 +51,5 @@ test('tool index diagnostics identify invalid descriptors without exposing user 
  const allowed=offeredTools([{name:'good'}]);
  assert.throws(()=>parseEnvelope('{"kind":"tool_call","name":"not_offered","input":{}}',allowed),/TOOL_CALL_INVALID/);
 });
+
+test('SessionBinding not-dispatched rollback permits clean first-turn retry',()=>{const b=new SessionBinding();const messages=[M(3,'system'),M(1,'hello')];const first=b.admit(messages);b.notDispatched(first);const retry=b.admit(messages);assert.equal(retry.conversationId,null);assert.equal(retry.previousState,'NEW');});
