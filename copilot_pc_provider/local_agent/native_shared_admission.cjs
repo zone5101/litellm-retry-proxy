@@ -18,13 +18,25 @@ class AdmissionError extends Error {
   }
 }
 
+const isCancelled=signal=>signal?.aborted===true||signal?.isCancellationRequested===true;
+function subscribeCancel(signal,handler){
+  if(typeof signal?.addEventListener==='function'){
+    signal.addEventListener('abort',handler,{once:true});
+    return ()=>signal.removeEventListener?.('abort',handler);
+  }
+  if(typeof signal?.onCancellationRequested==='function'){
+    const disposable=signal.onCancellationRequested(handler);
+    return ()=>disposable?.dispose?.();
+  }
+  return ()=>{};
+}
 function pause(ms, signal) {
   return new Promise((resolve,reject)=>{
-    if (signal?.aborted) return reject(new AdmissionError('CANCELLED_NOT_DISPATCHED'));
-    const cancel=()=>{ clearTimeout(timer); cleanup(); reject(new AdmissionError('CANCELLED_NOT_DISPATCHED')); };
-    const cleanup=()=>signal?.removeEventListener?.('abort',cancel);
+    if(isCancelled(signal))return reject(new AdmissionError('CANCELLED_NOT_DISPATCHED'));
+    let cleanup=()=>{};
+    const cancel=()=>{clearTimeout(timer);cleanup();reject(new AdmissionError('CANCELLED_NOT_DISPATCHED'));};
     const timer=setTimeout(()=>{cleanup();resolve();},ms);
-    signal?.addEventListener?.('abort',cancel,{once:true});
+    cleanup=subscribeCancel(signal,cancel);
   });
 }
 
@@ -42,7 +54,7 @@ class SharedNativeAdmission {
   async acquire({fingerprint,signal}={}) {
     if(typeof fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(fingerprint))
       throw new AdmissionError('FINGERPRINT_INVALID');
-    if(signal?.aborted) throw new AdmissionError('CANCELLED_NOT_DISPATCHED');
+    if(isCancelled(signal)) throw new AdmissionError('CANCELLED_NOT_DISPATCHED');
     const start=Date.now();
     for(;;) {
       let elected=false;

@@ -1,0 +1,56 @@
+{
+    "name":  "chatgpt-pc-staging-copilot",
+    "displayName":  "ChatGPT PC Staging Copilot Provider",
+    "description":  "v6 Local Agent preview 0.0.10 with shared cross-process native renderer admission",
+    "publisher":  "livingos-local",
+    "version":  "0.0.10",
+    "private":  true,
+    "engines":  {
+                    "vscode":  "^1.141.0"
+                },
+    "main":  "./extension.js",
+    "activationEvents":  [
+                             "onStartupFinished"
+                         ],
+    "contributes":  {
+                        "languageModelChatProviders":  [
+                                                           {
+                                                               "vendor":  "chatgpt-pc-isolated",
+                                                               "displayName":  "ChatGPT PC Isolated"
+                                                           }
+                                                       ],
+                        "commands":  [
+                                         {
+                                             "command":  "chatgptPcStaging.stop",
+                                             "title":  "ChatGPT PC Staging: Stop Owned Proxy"
+                                         }
+                                     ],
+                        "configuration":  {
+                                              "title":  "ChatGPT PC Isolated Staging",
+                                              "properties":  {
+                                                                 "chatgptPcStaging.repoRoot":  {
+                                                                                                   "type":  "string",
+                                                                                                   "default":  "",
+                                                                                                   "description":  "Absolute path to existing ChatGPT PC bridge worktree; empty uses canonical per-user worktree."
+                                                                                               }
+                                                             }
+                                          },
+                        "chatParticipants":  [
+                                                 {
+                                                     "id":  "chatgpt-pc-staging-copilot.chatgptpc",
+                                                     "name":  "chatgptpc",
+                                                     "fullName":  "ChatGPT PC Isolated",
+                                                     "description":  "Unchanged v6 legacy participant; model picker route is the supported v0.0.7 test",
+                                                     "isSticky":  true
+                                                 }
+                                             ]
+                    },
+    "scripts":  {
+                    "test":  "node --test test.cjs participant-test.cjs participant-context-test.cjs"
+                },
+    "__metadata":  {
+                       "installedTimestamp":  1791889848761,
+                       "targetPlatform":  "undefined",
+                       "size":  27196
+                   }
+}
