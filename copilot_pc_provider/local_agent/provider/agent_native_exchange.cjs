@@ -5,10 +5,12 @@ const path=require('node:path');
 const os=require('node:os');
 const cp=require('node:child_process');
 const rl=require('node:readline');
+const {SharedNativeAdmission,fingerprintNativePrompt}=require('./native_shared_admission.cjs');
+const sharedNativeAdmission=new SharedNativeAdmission();
 const runtime=path.join(os.tmpdir(),'chatgpt_renderer_isolation_20261013','scope-probe-v11-app','renderer-bridge-runtime.json');
 const client=path.join(__dirname,'chatgpt_pc_pipe_probe_v11.cjs');
 const fail=reason=>{throw Error('REA_NATIVE_EXCHANGE_'+reason)};
-async function exchange({sessionId,conversationId=null,prompt,token}){
+async function exchangeUnlocked({sessionId,conversationId=null,prompt,token}){
  if(!sessionId||typeof sessionId!=='string'||!/^agent\.[a-f0-9]{24}$/.test(sessionId)||
     conversationId!==null&&(typeof conversationId!=='string'||conversationId.length>128)||
     typeof prompt!=='string'||!prompt.trim()||Buffer.byteLength(prompt)>8192)
@@ -58,5 +60,11 @@ async function exchange({sessionId,conversationId=null,prompt,token}){
    child.kill();
    throw error;
  }finally{onCancel?.dispose?.()}
+}
+async function exchange(args){
+ const {sessionId,conversationId=null,prompt,token}=args||{};
+ if(!sessionId||typeof sessionId!=='string'||!/^agent\.[a-f0-9]{24}$/.test(sessionId)||conversationId!==null&&(typeof conversationId!=='string'||conversationId.length>128)||typeof prompt!=='string'||!prompt.trim()||Buffer.byteLength(prompt)>8192)fail('INPUT_REJECTED');
+ if(!fs.existsSync(runtime)||!fs.existsSync(client))fail('RUNTIME_MISSING');
+ return sharedNativeAdmission.run({fingerprint:fingerprintNativePrompt('agent',conversationId,prompt),token,dispatch:()=>exchangeUnlocked(args)});
 }
 module.exports={exchange};
