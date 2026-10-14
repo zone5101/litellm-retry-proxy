@@ -191,3 +191,10 @@ Loss & lesson:
 - Descriptor presence khong dong nghia local handler: `ApiServerService.GetChatMessage` co schema dep nhung khong co exact local route string; khong blind-retry.
 - Tool schema co the dung nhung model-facing example van lam model boc them presentation wrapper. Parser phai chap nhan representation repair co gioi han, sau do fail-closed tren tool authority.
 - External harness phai giu quyen execute tool; provider bridge chi chuyen doi model request/response.
+
+## Local Agent shared admission recovery follow-up (2026-10-14)
+
+- Live 0.0.10 request `v11req_e7c9eaa1194be8af20560bc91b6a` ended with renderer `unknown_session_or_capacity` and provider `UNKNOWN_DO_NOT_REPLAY`; its DISPATCHING lock remained and blocked later requests, including the 96-tool request.
+- Correlated the unique renderer terminal event and following provider failure by dispatch window. Wrote `RECOVERED_TERMINAL_ERROR` to the native outcome journal and removed the stale admission lock. No request was replayed.
+- Found a follow-up recovery bug: an identical fingerprint was rejected before checking terminal evidence. Reordered admission so terminal evidence can release the owner first, then the identical request fails closed with `TERMINAL_REQUEST_DO_NOT_REPLAY` without dispatch. Regression test: `same request reconciles terminal owner then refuses replay`.
+- Focused admission tests: 8/8 PASS. This proves source behavior only. Installed Local Agent remains 0.0.10; host-tool execution and same-conversation GUI E2E are still NOT PROVEN. Per provider README, do not activate through BAM until that E2E evidence exists.
