@@ -8,7 +8,7 @@ const {SessionJournal} = require('./journal.cjs');
 
 function tmp() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(),'v6-journal-'));
-  return {root,dbPath:path.join(root,'events.sqlite'),sourceScope:'isolated-v6-test'};
+  return {root,dbPath:path.join(root,'events.sqlite'),sourceScope:'chatgpt-pc:isolated-v6-test'};
 }
 function put(j,request,kind,data={}) { j.record({kind,data},request); }
 function finish(j,request,conv,mid,parts) {
@@ -66,4 +66,15 @@ test('non-prefix correction replaces rendered assistant text, never concatenates
   assert.equal(v.messages[1].text,'xyz');
   assert.equal(v.messages[1].revision,3);
   j.close();fs.rmSync(p.root,{recursive:true,force:true});
+});
+
+// A second browser/app/profile cannot write into the same authoritative journal.
+test('journal rejects another native source and any web source; preserves first authority',()=>{
+  const p=tmp(),one=new SessionJournal(p);
+  one.close();
+  assert.throws(()=>new SessionJournal({...p,sourceScope:'browser:chrome-profile'}),/CONFIG_INVALID/);
+  assert.throws(()=>new SessionJournal({...p,sourceScope:'chatgpt-pc:different-profile'}),/AUTHORITY_MISMATCH/);
+  const reopened=new SessionJournal(p);
+  assert.equal(reopened.db.prepare('SELECT source_scope FROM journal_authority').get().source_scope,p.sourceScope);
+  reopened.close();fs.rmSync(p.root,{recursive:true,force:true});
 });

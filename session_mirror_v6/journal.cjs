@@ -7,12 +7,21 @@ const {DatabaseSync} = require('node:sqlite');
 function validId(s) { return typeof s === 'string' && s.length > 0 && s.length <= 256 && !/[\0\r\n]/.test(s); }
 class SessionJournal {
   constructor({dbPath, sourceScope}) {
-    if (!validId(sourceScope) || typeof dbPath !== 'string' || !dbPath.endsWith('.sqlite'))
+    if (!validId(sourceScope) || !sourceScope.startsWith('chatgpt-pc:') ||
+        typeof dbPath !== 'string' || !dbPath.endsWith('.sqlite'))
       throw Error('JOURNAL_CONFIG_INVALID');
     this.scope = sourceScope;
     fs.mkdirSync(path.dirname(dbPath), {recursive:true,mode:0o700});
     this.db = new DatabaseSync(dbPath);
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
+    // ponytail: one durable native-source authority per DB; sourceScope is NOT account authentication.
+    this.db.exec('CREATE TABLE IF NOT EXISTS journal_authority (' +
+      'singleton INTEGER PRIMARY KEY CHECK(singleton=1), source_scope TEXT NOT NULL)');
+    this.db.prepare('INSERT OR IGNORE INTO journal_authority(singleton,source_scope) VALUES(1,?)').run(sourceScope);
+    if (this.db.prepare('SELECT source_scope FROM journal_authority WHERE singleton=1').get()?.source_scope !== sourceScope) {
+      this.db.close();
+      throw Error('JOURNAL_AUTHORITY_MISMATCH');
+    }
     this.db.exec('CREATE TABLE IF NOT EXISTS events (' +
       'seq INTEGER PRIMARY KEY AUTOINCREMENT, event_key TEXT NOT NULL UNIQUE,' +
       'source_scope TEXT NOT NULL, conversation_id TEXT NOT NULL, request_id TEXT NOT NULL,' +
