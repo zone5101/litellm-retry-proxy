@@ -16,8 +16,19 @@ process.stdin.on('end', () => {
   let request;
   try { request = JSON.parse(input); } catch { throw Error('Invalid request JSON'); }
   if (typeof request.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(request.request_id) || typeof request.prompt !== 'string' || !request.prompt.trim() || Buffer.byteLength(request.prompt, 'utf8') > 8192 || request.prompt.includes('\0')) throw Error('Unsupported staging request');
-  // v6 Jwi creates a fresh native conversation. Reject continuation intent before any submission.
-  if (['conversation_id', 'conversationId', 'session_id', 'sessionId', 'thread_id', 'threadId'].some(key => Object.hasOwn(request, key)) || process.env.CHATMODE_EXPECT_CONVERSATION_ID) throw Error('V6_CONTINUATION_UNSUPPORTED_DO_NOT_SUBMIT');
+  // Native continuation is test-only until the real renderer proves source-ID continuity.
+  // Never use prompt history, another browser profile, or a fallback to a fresh conversation.
+  const target=request.conversation_id;
+  if (['conversationId','session_id','sessionId','thread_id','threadId'].some(key=>Object.hasOwn(request,key))) throw Error('V6_CONTINUATION_UNSUPPORTED_DO_NOT_SUBMIT');
+  if (target!==undefined || process.env.CHATMODE_EXPECT_CONVERSATION_ID) {
+    const nativeId=/^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|local-[a-z0-9]{7}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+    if (process.env.CHATMODE_ENABLE_VERIFIED_CONTINUATION!=='1' || !nativeId.test(target||'') ||
+        process.env.CHATMODE_EXPECT_CONVERSATION_ID!==target || !journalPath || !journalScope) throw Error('V6_CONTINUATION_UNSUPPORTED_DO_NOT_SUBMIT');
+    const check=new SessionJournal({dbPath:journalPath,sourceScope:journalScope});
+    let accepted=false;
+    try { accepted=check.hasCompletedConversation(target); } finally {check.close();}
+    if (!accepted) throw Error('V6_CONTINUATION_SOURCE_CONVERSATION_UNVERIFIED');
+  }
   run(request);
 });
 function run(request) {
@@ -53,14 +64,21 @@ function run(request) {
       try { frame = JSON.parse(raw); } catch { fail('invalid_json'); return; }
       if (frame.kind === 'hello') {
         if (authorized || frame.renderer_ready !== true) { fail('renderer_not_ready'); return; }
+        if (request.conversation_id && !frame.capabilities?.includes('native_conversation_continue_v1')) { fail('renderer_continuation_capability_missing'); return; }
         authorized = true;
-        socket.write(JSON.stringify({ type: 'complete', request_id: request.request_id, prompt: request.prompt }) + '\n');
+        socket.write(JSON.stringify({ type: 'complete', request_id: request.request_id, prompt: request.prompt,
+          ...(request.conversation_id?{conversation_id:request.conversation_id}:{}) }) + '\n');
         submitted = true;
         continue;
       }
       if (!authorized || !submitted || frame.request_id !== request.request_id) { fail('identity_mismatch'); return; }
       if (frame.kind === 'submitted') {
+        if (request.conversation_id && frame.data?.conversation_id!==request.conversation_id) { fail('native_conversation_id_mismatch_do_not_replay'); return; }
         try { journal?.record(frame,request); } catch (_) { fail('journal_source_unavailable'); return; }
+        continue;
+      }
+      if (frame.kind === 'server_bound') {
+        try { journal?.record(frame,request); } catch (_) { fail('native_server_id_conflict'); return; }
         continue;
       }
       if (frame.kind === 'response' || frame.kind === 'transport_complete') continue;

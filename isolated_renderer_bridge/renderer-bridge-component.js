@@ -33,7 +33,7 @@ function OaiRendererScopeProbe(){
       }
       if(request?.operation!==`complete`||typeof request.request_id!==`string`||typeof request.prompt!==`string`)return;
       if(active){api.emit({request_id:request.request_id,kind:`error`,data:{code:`busy`}});return}
-      const state={id:request.request_id,original:service.startCompletionStream,abort:new AbortController,finished:false,sawText:false};
+      const state={id:request.request_id,original:service.startCompletionStream,abort:new AbortController,finished:false,sawText:false,sourceConversationId:null,serverConversationId:null};
       active=state;
       service.startCompletionStream=function(options){
         if(active!==state)return state.original.call(this,options);
@@ -48,12 +48,20 @@ function OaiRendererScopeProbe(){
         return state.original.call(this,wrapped);
       };
       try{
-        const submitted=await Jwi(scope,{prompt:request.prompt,model:`auto`,startupSignal:state.abort.signal,onCompletion:outcome=>{
+        const submitted=await Jwi(scope,{prompt:request.prompt,conversationId:request.conversation_id??void 0,model:`auto`,startupSignal:state.abort.signal,onServerThreadIdChange:serverId=>{
+          if(typeof serverId===`string`&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(serverId)){
+            state.serverConversationId=serverId;
+            if(state.sourceConversationId)emit(state,`server_bound`,{server_conversation_id:serverId});
+          }
+        },onCompletion:outcome=>{
           emit(state,`diagnostic`,{stage:`onCompletion`,outcome:String(outcome)});
           if(outcome===`completed`&&state.sawText)finish(state,`terminal`,{finish_reason:`stop`});
           else finish(state,`error`,{code:`native_outcome_${String(outcome)}`});
         }});
-        if(active===state)emit(state,`submitted`,{conversation_id:submitted?.conversationId??null,stream_request_id:submitted?.streamRequestId??null});
+        if(active===state){
+          state.sourceConversationId=submitted?.conversationId??null;
+          emit(state,`submitted`,{conversation_id:state.sourceConversationId,stream_request_id:submitted?.streamRequestId??null,server_conversation_id:state.serverConversationId??null});
+        }
       }catch(error){finish(state,`error`,{code:error?.name??`dispatch_error`})}
     });
     api.ready();

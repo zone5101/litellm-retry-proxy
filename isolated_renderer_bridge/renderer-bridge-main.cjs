@@ -66,15 +66,17 @@ app.whenReady().then(() => {
         if (!authorized) {
           if (message?.type !== 'hello' || message.token !== token) { socket.destroy(); return; }
           authorized = true;
-          send(socket, { kind: 'hello', renderer_ready: !!owner });
+          send(socket, { kind: 'hello', renderer_ready: !!owner, capabilities:['native_conversation_continue_v1'] });
           continue;
         }
         if (message?.type === 'cancel' && active?.socket === socket && message.request_id === active.id) { cancelActive(); send(socket, { kind: 'cancelled', request_id: message.request_id }); socket.end(); return; }
-        if (message?.type !== 'complete' || active || !owner || owner.isDestroyed() || typeof message.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(message.request_id) || typeof message.prompt !== 'string' || !message.prompt.trim() || Buffer.byteLength(message.prompt, 'utf8') > 8192 || message.prompt.includes('\0')) {
+        if (message?.type !== 'complete' || active || !owner || owner.isDestroyed() || typeof message.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(message.request_id) || typeof message.prompt !== 'string' || !message.prompt.trim() || Buffer.byteLength(message.prompt, 'utf8') > 8192 || message.prompt.includes('\0') ||
+            (message.conversation_id !== undefined && (typeof message.conversation_id !== 'string' || !/^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|local-[a-z0-9]{7}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(message.conversation_id)))) {
           send(socket, { kind: 'error', code: 'invalid_or_unavailable_request' }); socket.end(); return;
         }
         active = { id: message.request_id, socket };
-        owner.send('chatgpt-pc-bridge:request', { operation: 'complete', request_id: active.id, prompt: message.prompt });
+        owner.send('chatgpt-pc-bridge:request', { operation: 'complete', request_id: active.id, prompt: message.prompt,
+          ...(message.conversation_id?{conversation_id:message.conversation_id}:{}) });
       }
     });
     socket.on('close', () => { if (active?.socket === socket) cancelActive(); });

@@ -22,6 +22,11 @@ class SessionJournal {
       this.db.close();
       throw Error('JOURNAL_AUTHORITY_MISMATCH');
     }
+    this.db.exec('CREATE TABLE IF NOT EXISTS conversation_server_map (' +
+      'source_scope TEXT NOT NULL, conversation_id TEXT NOT NULL, server_conversation_id TEXT NOT NULL,' +
+      'PRIMARY KEY(source_scope,conversation_id))');
+    this.mappingRow = this.db.prepare('SELECT server_conversation_id FROM conversation_server_map WHERE source_scope=? AND conversation_id=?');
+    this.mappingInsert = this.db.prepare('INSERT OR IGNORE INTO conversation_server_map(source_scope,conversation_id,server_conversation_id) VALUES (?,?,?)');
     this.db.exec('CREATE TABLE IF NOT EXISTS events (' +
       'seq INTEGER PRIMARY KEY AUTOINCREMENT, event_key TEXT NOT NULL UNIQUE,' +
       'source_scope TEXT NOT NULL, conversation_id TEXT NOT NULL, request_id TEXT NOT NULL,' +
@@ -49,12 +54,16 @@ class SessionJournal {
       if (!validId(conv) || this.conversationId && this.conversationId !== conv)
         throw Error('JOURNAL_SOURCE_CONVERSATION_UNAVAILABLE');
       this.conversationId = conv;
+      if (frame.data?.server_conversation_id) this.bindServer(frame.data.server_conversation_id);
       this.emit('bound:'+this.scope+':'+conv+':'+id,'session.bound',id);
       if (typeof request.prompt === 'string' && request.prompt.trim() &&
           Buffer.byteLength(request.prompt,'utf8') <= 8192)
         this.emit('user:'+this.scope+':'+conv+':'+id,'user.submitted',id,null,null,request.prompt);
       const pending = this.pending; this.pending = []; this.pendingBytes = 0;
       for (const item of pending) this.snapshot(item,id);
+    } else if (frame.kind === 'server_bound') {
+      if (!this.conversationId || this.terminal) throw Error('JOURNAL_SERVER_BINDING_OUT_OF_ORDER');
+      this.bindServer(frame.data?.server_conversation_id);
     } else if (frame.kind === 'snapshot') {
       if (!this.conversationId) {
         const text = frame.data?.text;
@@ -73,6 +82,14 @@ class SessionJournal {
         this.emit('interrupted:'+this.scope+':'+this.conversationId+':'+id,'turn.interrupted',id);
     }
   }
+  bindServer(serverId) {
+    if (!this.conversationId || typeof serverId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(serverId))
+      throw Error('JOURNAL_SERVER_ID_INVALID');
+    const existing=this.mappingRow.get(this.scope,this.conversationId)?.server_conversation_id;
+    if (existing && existing.toLowerCase()!==serverId.toLowerCase()) throw Error('JOURNAL_SERVER_ID_CONFLICT');
+    this.mappingInsert.run(this.scope,this.conversationId,serverId);
+  }
   snapshot(data, id) {
     if (!validId(data?.message_id) || typeof data.text !== 'string' ||
         Buffer.byteLength(data.text,'utf8') > 262144 || this.terminal)
@@ -85,6 +102,11 @@ class SessionJournal {
     const rev = last ? last.revision + 1 : 1;
     this.emit('snap:'+this.scope+':'+this.conversationId+':'+data.message_id+':'+rev,
       'assistant.snapshot',id,data.message_id,rev,data.text);
+  }
+  hasCompletedConversation(conversationId) {
+    if (!validId(conversationId)) return false;
+    const row = this.db.prepare('SELECT COUNT(*) AS n FROM events WHERE source_scope=? AND conversation_id=? AND kind=?').get(this.scope,conversationId,'assistant.completed');
+    return Number(row?.n||0)>0;
   }
   projection(conversationId) {
     if (!validId(conversationId)) throw Error('JOURNAL_CONVERSATION_INVALID');
@@ -100,7 +122,8 @@ class SessionJournal {
         const m = index.get(row.message_id); if(m)m.completed=true;
       }
     }
-    return {sourceScope:this.scope,conversationId,messages};
+    const serverConversationId=this.mappingRow.get(this.scope,conversationId)?.server_conversation_id??null;
+    return {sourceScope:this.scope,conversationId,serverConversationId,messages};
   }
   close() { this.db.close(); }
 }

@@ -78,3 +78,21 @@ test('journal rejects another native source and any web source; preserves first 
   assert.equal(reopened.db.prepare('SELECT source_scope FROM journal_authority').get().source_scope,p.sourceScope);
   reopened.close();fs.rmSync(p.root,{recursive:true,force:true});
 });
+
+test('local thread maps to one server UUID durably; conflict fails closed',()=>{
+  const p=tmp(),j=new SessionJournal(p);
+  const local='local-testabc:00000000-0000-4000-8000-000000000000';
+  const server='00000000-0000-4000-8000-000000000002';
+  const req={request_id:'mapping-test-0001',prompt:'first'};
+  put(j,req,'submitted',{conversation_id:local});
+  put(j,req,'server_bound',{server_conversation_id:server});
+  put(j,req,'server_bound',{server_conversation_id:server});
+  assert.throws(()=>put(j,req,'server_bound',{server_conversation_id:'00000000-0000-4000-8000-000000000003'}),/SERVER_ID_CONFLICT/);
+  assert.equal(j.projection(local).serverConversationId,server);
+  assert.equal(j.projection('another-conversation').serverConversationId,null);
+  j.close();
+  const reopened=new SessionJournal(p);
+  assert.equal(reopened.projection(local).serverConversationId,server);
+  assert.equal(reopened.hasCompletedConversation(local),false);
+  reopened.close();fs.rmSync(p.root,{recursive:true,force:true});
+});

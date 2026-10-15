@@ -24,6 +24,18 @@
 - Receipt: native request `5a81e19b-a248-497a-a4b0-6ca7852cf3fc` and private local `.attempt` guard; do not copy the conversation database or prompts to Git.
 - `chatgpt_pc_pipe_client.cjs` now rejects explicit `conversation_id` / `conversationId` / `session_id` / `sessionId` / `thread_id` / `threadId` (or `CHATMODE_EXPECT_CONVERSATION_ID`) before submitting to the v6 renderer. The **missing continuation API cannot be simulated**. No second source or history-replay fallback.
 
+### Native continuation prototype (separate branch, 2026-10-15)
+
+Read directly from the exact v6 renderer bundle: `Jwi(scope, {conversationId, prompt, ...})` accepts a native thread identity and forwards it into `Zwi`. In `Zwi`, `onServerThreadIdChange` is fired with the backend server conversation ID after the local thread acquires its server identity. Native `submitted.conversationId` from earlier real E2E is a **50-character local ID** shaped `local-XXXXXXX:UUID`; it is not itself proof of Android/backend conversation identity.
+
+- `CHATMODE_ENABLE_VERIFIED_CONTINUATION=1` and exact `CHATMODE_EXPECT_CONVERSATION_ID` are isolated opt-ins. The existing SQLite journal must already have a completed turn with that exact native ID. Otherwise the client refuses **before touching the pipe**.
+- Renderer handshake advertises `native_conversation_continue_v1`; the old v6 bridge does not, so fallback to an unsupported renderer is prohibited.
+- One exact `conversation_id` is forwarded client → pipe main → renderer → `Jwi`; `submitted.conversation_id` is checked against the requested ID. Any mismatch reports `native_conversation_id_mismatch_do_not_replay`.
+- Callback `onServerThreadIdChange` is captured without logging raw account credentials. The same journal stores local-to-server mapping and rejects a conflicting server UUID; a missing callback remains `serverConversationId:null`, never an invented mapping.
+- **Mock-pipe E2E PASS** for same ID over two turns, legacy handshake negative, incorrect-ID negative; no actual ChatGPT backend second-turn E2E has been run with the modified renderer.
+- The old isolated v6 app is still running and **has not loaded this new renderer code**. Actual same-account Android/PC acceptance, a signed-in visible WinUI session, and VS Code Chat Sessions projection remain blocked/not proven.
+- A single earlier live negative probe was consumed but never reached the bridge: the historical native local ID failed the prototype's initial UUID-only validator. The validator now accepts the verified local-ID format. **Do not replay that request**.
+
 Until gates 1–3 pass, this is **isolated recorder work**, not an Android↔PC synchronizer.
 
 ## Tests
