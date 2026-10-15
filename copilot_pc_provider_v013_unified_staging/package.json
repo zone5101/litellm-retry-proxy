@@ -1,0 +1,47 @@
+{
+  "name": "chatgpt-pc-staging-copilot",
+  "displayName": "ChatGPT PC Staging Copilot Provider",
+  "description": "Chatmode model alias for the v6 Local Agent provider",
+  "publisher": "livingos-local",
+  "version": "0.0.13",
+  "private": true,
+  "engines": {
+    "vscode": "^1.141.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "chatgpt-pc-isolated",
+        "displayName": "ChatGPT PC Isolated"
+      }
+    ],
+    "commands": [
+      {
+        "command": "chatgptPcStaging.stop",
+        "title": "ChatGPT PC Staging: Stop Owned Proxy"
+      }
+    ],
+    "configuration": {
+      "title": "ChatGPT PC Isolated Staging",
+      "properties": {
+        "chatgptPcStaging.repoRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to existing ChatGPT PC bridge worktree; empty uses canonical per-user worktree."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test durable_session_binding.test.cjs unified_provider_contract.test.cjs test.cjs"
+  },
+  "__metadata": {
+    "installedTimestamp": 1792020953864,
+    "targetPlatform": "undefined",
+    "size": 62733
+  }
+}
