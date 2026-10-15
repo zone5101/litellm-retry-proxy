@@ -2,6 +2,9 @@
 const fs = require('node:fs');
 const net = require('node:net');
 const crypto = require('node:crypto');
+const {SessionJournal} = require('./session_mirror_v6/journal.cjs');
+const journalPath = process.env.CHATMODE_JOURNAL_PATH;
+const journalScope = process.env.CHATMODE_SOURCE_SCOPE;
 const runtimePath = process.env.CHATGPT_PC_BRIDGE_RUNTIME;
 if (!runtimePath) throw Error('CHATGPT_PC_BRIDGE_RUNTIME is required');
 const runtime = JSON.parse(fs.readFileSync(runtimePath, 'utf8'));
@@ -16,6 +19,10 @@ process.stdin.on('end', () => {
   run(request);
 });
 function run(request) {
+  // Opt-in only. Existing v6 transport behaves unchanged when unset.
+  const journal = journalPath ? new SessionJournal({dbPath:journalPath,sourceScope:journalScope}) : null;
+  let journalClosed = false;
+  function closeJournal() { if (journal && !journalClosed) {journalClosed=true; journal.close();} }
   let buffer = '', authorized = false, submitted = false, finished = false;
   let messageId = null, latestText = '';
   const socket = net.connect(runtime.pipe);
@@ -25,6 +32,8 @@ function run(request) {
     if (finished) return;
     finished = true;
     clearTimeout(timeout);
+    try {journal?.record({kind:'error',data:{code}},request);} catch (_) {}
+    closeJournal();
     if (submitted && !socket.destroyed) socket.write(JSON.stringify({ type: 'cancel', request_id: request.request_id }) + '\n');
     output({ kind: 'error', code });
     socket.end();
@@ -48,13 +57,18 @@ function run(request) {
         continue;
       }
       if (!authorized || !submitted || frame.request_id !== request.request_id) { fail('identity_mismatch'); return; }
-      if (frame.kind === 'submitted' || frame.kind === 'response' || frame.kind === 'transport_complete') continue;
+      if (frame.kind === 'submitted') {
+        try { journal?.record(frame,request); } catch (_) { fail('journal_source_unavailable'); return; }
+        continue;
+      }
+      if (frame.kind === 'response' || frame.kind === 'transport_complete') continue;
       if (frame.kind === 'diagnostic' && ['onCompletion', 'onError'].includes(frame.data?.stage)) continue;
       if (frame.kind === 'snapshot') {
         const id = frame.data?.message_id, text = frame.data?.text;
         if (typeof id !== 'string' || typeof text !== 'string') { fail('invalid_snapshot'); return; }
         if (messageId !== null && messageId !== id) { fail('multiple_assistant_messages'); return; }
         messageId = id;
+        try { journal?.record(frame,request); } catch (_) { fail('journal_write_failed'); return; }
         if (!text.startsWith(latestText)) { fail('non_prefix_snapshot'); return; }
         const delta = text.slice(latestText.length);
         latestText = text;
@@ -63,8 +77,10 @@ function run(request) {
       }
       if (frame.kind === 'terminal') {
         if (finished || frame.data?.finish_reason !== 'stop' || !messageId || !latestText) { fail('invalid_terminal'); return; }
+        try { journal?.record(frame,request); } catch (_) { fail('journal_terminal_failed'); return; }
         finished = true;
         clearTimeout(timeout);
+        closeJournal();
         output({ kind: 'finished', finish_reason: 'stop' });
         socket.end();
         return;
