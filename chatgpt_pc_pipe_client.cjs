@@ -16,6 +16,8 @@ process.stdin.on('end', () => {
   let request;
   try { request = JSON.parse(input); } catch { throw Error('Invalid request JSON'); }
   if (typeof request.request_id !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(request.request_id) || typeof request.prompt !== 'string' || !request.prompt.trim() || Buffer.byteLength(request.prompt, 'utf8') > 8192 || request.prompt.includes('\0')) throw Error('Unsupported staging request');
+  // v6 Jwi creates a fresh native conversation. Reject continuation intent before any submission.
+  if (['conversation_id', 'conversationId', 'session_id', 'sessionId', 'thread_id', 'threadId'].some(key => Object.hasOwn(request, key)) || process.env.CHATMODE_EXPECT_CONVERSATION_ID) throw Error('V6_CONTINUATION_UNSUPPORTED_DO_NOT_SUBMIT');
   run(request);
 });
 function run(request) {

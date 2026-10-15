@@ -18,6 +18,12 @@
 2. Demonstrate opening and **continuing the same existing native conversation_id** from Android (real two-turn E2E) without constructing fake history, spawning a new conversation, or replaying requests.
 3. Confirm VS Code/Copilot can render this source's journal in its supported Chat Sessions interface. If the API is proposed/unavailable, fail closed rather than adding a shadow UI or patching an agent-host database.
 
+### Native WinUI and live two-turn E2E receipt — 2026-10-15
+- Used native `ui_query` to enumerate Windows and read VS Code controls; the isolated v6 ChatGPT PC process PID 32728 was alive but had no visible top-level ChatGPT window (`MainWindowHandle = 0`). Asking WinUI for ChatGPT returned the focused VS Code window instead; reject it as ChatGPT identity evidence.
+- One replay-guarded **live two-turn** test against the same isolated v6 native PC renderer: both responses completed, both were recorded to one SQLite journal, but native `submitted.conversation_id` values were **different (2 distinct IDs)**. `same_native_conversation` = **FAIL**. A correct second answer does not override source IDs.
+- Receipt: native request `5a81e19b-a248-497a-a4b0-6ca7852cf3fc` and private local `.attempt` guard; do not copy the conversation database or prompts to Git.
+- `chatgpt_pc_pipe_client.cjs` now rejects explicit `conversation_id` / `conversationId` / `session_id` / `sessionId` / `thread_id` / `threadId` (or `CHATMODE_EXPECT_CONVERSATION_ID`) before submitting to the v6 renderer. The **missing continuation API cannot be simulated**. No second source or history-replay fallback.
+
 Until gates 1–3 pass, this is **isolated recorder work**, not an Android↔PC synchronizer.
 
 ## Tests
