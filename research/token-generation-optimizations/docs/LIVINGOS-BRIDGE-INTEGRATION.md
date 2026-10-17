@@ -77,3 +77,11 @@ The single-run combined result is ~24.4% faster than the single-run live baselin
 - [Strict fidelity filter](STRICT-FIDELITY.md) and [llama.cpp microbench playbook](LOCAL-LLAMA-CPP.md).
 
 **Status: DOCUMENTATION / MEASUREMENTS ONLY.** No BRIDGE production code changed, no Hestia production launcher changed, no model weight modified, no auto cutover.
+
+## 6. Long-context prefill negative/censored result (2026-10-17)
+
+The operator requested that tests extend beyond the previous 32–48 token microbenchmarks. Through LivingOS Native MCP, an isolated **same Hestia Q5_K_M** backend with **`-c 16384`**, existing **KV q8_0**, CPU-only and **`--no-context-shift`** successfully loaded. The exact server `/tokenize` endpoint measured **9,482 input tokens**, including distinguishable retrieval canaries placed at the start/middle/end. The original generated corpus was **18,177 tokens**, exceeding 16K, and was rejected rather than truncated. A second run used `-b 1024 -ub 512` instead of `-b 256 -ub 64`, without changing model or KV precision.
+
+**Outcome: CENSORED / NOT PASSED.** The 9,482-token full-response test was not completed within the acceptable on-host wall-time window; the test owner explicitly stopped its own long-running child and Windows job. No validated natural-EOS answer, three-canary retrieval verdict, completed TTFT, long-context decode tok/s or speculative A/B quality parity resulted. This is evidence of a serious CPU long-prefill latency bottleneck, **not** evidence of lossless 16K cognition or improved 16K tok/s. One observed earlier `/slots` sample during the baseline showed only 1,536 prompt tokens processed at that instant; do not infer a sustained rate from that single progress snapshot.
+
+Durable local censored report: `F:\LivingOS\ModelLab\BRIDGE_Brain_Ollama\GGUF_GPU_BRIDGE_TRIAL_V1\HESTIA_LONG_CONTEXT_PREFILL_AB_20261017.json`. 16K test backend `18913` was confirmed closed; production BRIDGE `11437` and managed Hestia `8911` remained listening. **No increase of production context from 4096, no optimization promotion, no weight change.** The next measurement design must instrument progressive prefill/first SSE output durably and compare 4K/8K/16K with repeatable resource-admitted workloads; 16/32/64/128K startup-ready tests are not equivalent to quality or throughput tests.
