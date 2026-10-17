@@ -13,6 +13,7 @@
 - [SOURCES.md](docs/SOURCES.md) — liên kết mã nguồn chính thức, paper và tài liệu kỹ thuật.
 - [techniques.csv](data/techniques.csv) — danh mục máy đọc được.
 - [compare_llama_bench.py](scripts/compare_llama_bench.py) — so sánh kết quả JSON từ `llama-bench` (Python stdlib, không cài dependency).
+- [test_compare_llama_bench.py](tests/test_compare_llama_bench.py) — 7 unit tests với **dữ liệu giả lập**, không phải benchmark GPU thật.
 
 ## Phân biệt 4 mục tiêu không được đánh đồng
 
@@ -54,5 +55,6 @@ Chỉ tổng hợp, dẫn nguồn và viết code benchmark nguyên bản. Khôn
 ## Trạng thái
 
 - Code và tài liệu **đã được rà soát qua nguồn công khai**, nhưng không có tuyên bố QA toàn diện.
-- Script phân tích JSON có thể kiểm thử bằng dữ liệu mẫu; GPU performance chưa được đo.
+- Đã bổ sung 7 unit tests trên dữ liệu giả lập; **chưa thực thi CI/test trên máy thực tế trong phiên này**. GPU performance chưa được đo.
+- Chạy unit tests cục bộ bằng `python3 -m unittest discover -s tests -v` từ thư mục Atlas.
 - Snapshot ngày 2026-10-17; flags/engine thường thay đổi giữa các release.
