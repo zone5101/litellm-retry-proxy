@@ -80,7 +80,17 @@ Evidence:
 
 One pair gives ~3% wall-time gain, **below reliable acceptance without repetitions**; cross-socket access may reverse under different loads. Output hash matches existing deterministic greedy cases. Evidence: `HESTIA_SEPARATE_CPU_MASKS_PREFILL_DECODE_20261017.json`.
 
-## 5. Limits, operator constraints, and next actual engineering frontier
+## 5. Actual >4K input prefill stress test: negative result (important)
+
+A final **real tokenized** >4K test was run with the same exact SurgeryChild SHA/model, **non-OpenMP sibling**, `-c 16384`, `-t12 -tb24`, decode CPU mask node0 physical, batch mask 24 physical across both NUMA nodes, `--no-context-shift`, K/V `q8_0`, Flash Attention auto and reasoning budget -1.
+
+The model's `/tokenize` endpoint counted **5,781 input tokens** from 95 synthetic records with head/middle/tail sentinels. The benchmark deliberately requested **`n_predict=1` ONLY to isolate prefill latency**. Despite this, `/completion` **did not return within 350 seconds**, and urllib raised `TimeoutError: timed out`. The test therefore has status **FAIL / no completion**, not a 16K context performance/accuracy PASS. Do not calculate prefill throughput from it or assume a token was generated; it may be compute stall, cross-socket memory contention or a responsiveness failure. Exact cause was not isolated. It does demonstrate an unacceptable >350s client-perceived result for this workload.
+
+The script released its owned process/Windows Job and LivingOS lease. Follow-up machine query showed **no LISTENING backend on 18913**, `8911` alive with `model_resident=false`, `active_requests=0`, `resource_lease_active=false`, and BRIDGE `11437` alive.
+
+Evidence: `F:\LivingOS\ModelLab\BRIDGE_Brain_Ollama\GGUF_GPU_BRIDGE_TRIAL_V1\HESTIA_NATIVEPOOL_REAL_LONG_CTX_PREFILL_20261017.json`. This is negative evidence, and forbids claiming validated 5.8K/8K/16K inference. A future shorter >4K probe with incremental progress instrumentation and native per-op timing would be needed before any context promotion.
+
+## 6. Limits, operator constraints, and next actual engineering frontier
 
 1. **Do not confuse context capacity with context retrieval quality.** A prior 9,482-token input was admitted at `-c16384` but test halted during prefill. This neither passes accuracy nor demonstrates natural EOS at 9K tokens.
 2. **No production mutation in this campaign.** Current Hestia owner `rock_man/hestia_resident_runtime.py` still uses `-t12 -tb12 -c4096` and releases model after each request. The BRIDGE optional `11437/hestia/completion` route registered previously remains separate. Do not bypass BAM leases or start a duplicate permanent backend.
