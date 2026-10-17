@@ -6,6 +6,7 @@
 
 ## Đọc gì trước?
 
+- [HESTIA-LLAMACPP-CONTROL-PLANE-20261017.md](docs/HESTIA-LLAMACPP-CONTROL-PLANE-20261017.md) — phân tích scheduler/NUMA/GEMV từ mã C++ thật, benchmark native thread pool và tách CPU-mask prefill/decode.
 - [LIVINGOS-BRIDGE-INTEGRATION.md](docs/LIVINGOS-BRIDGE-INTEGRATION.md) — ghép nghiên cứu tăng tốc token với **BRIDGE Brain**, Hestia proxy, BAM lease và Reality (hiện ở mức tài liệu + A/B, chưa đưa vào production).
 - [STRICT-FIDELITY.md](docs/STRICT-FIDELITY.md) — **bộ lọc KHÔNG đánh đổi chất lượng**: giữ nguyên weights/precision/full context, phân biệt bitwise exact / numerical equivalent / distribution-preserving speculation; loại bỏ quant/pruning/KV eviction.
 - [CATALOG.md](docs/CATALOG.md) — hơn 60 kỹ thuật/biến thể, phân tách **decode throughput / TTFT / server throughput / khả năng nhét model vào VRAM**, có mức độ bằng chứng và đánh đổi.
